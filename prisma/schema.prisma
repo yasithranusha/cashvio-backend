@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Status {
+  ACTIVE // Operating normally
+  INACTIVE // Temporarily inactive
+  SUSPENDED // Suspended by admin
+}
+
+enum Role {
+  ADMIN
+  SHOP_OWNER
+  SHOP_STAFF
+  CUSTOMER
+}
+
+model User {
+  id           String       @id @default(uuid())
+  name         String
+  dob          DateTime?
+  profileImage String?
+  status       Status    @default(ACTIVE)
+  email        String    @unique
+  password     String
+  role         Role      @default(SHOP_STAFF)
+  shop         Shop?     @relation(fields: [shopId], references: [id])
+  shopId       String?      @map("shop_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([shopId])
+  @@map("users")
+}
+
+model Shop {
+  id           String     @id @default(uuid())
+  businessName String  @map("business_name")
+  address      String
+  shopLogo     String? @map("shop_logo")
+  shopBanner   String? @map("shop_banner")
+  contactPhone String? @map("contact_phone")
+  status       Status  @default(ACTIVE)
+  users        User[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("shops")
+}
