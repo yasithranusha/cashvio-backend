@@ -6,6 +6,8 @@ import * as Joi from 'joi';
 import { DatabaseModule, RmqModule } from '@app/common';
 import { MAILER_SERVICE } from './constants/services';
 import { ShopRepository } from './repositories/shop.repository';
+import { UserRepository } from './repositories/user.repository';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -20,8 +22,9 @@ import { ShopRepository } from './repositories/shop.repository';
     }),
     DatabaseModule,
     RmqModule.register({ name: MAILER_SERVICE }),
+    UsersModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, ShopRepository],
+  providers: [AuthService, ShopRepository, UserRepository],
 })
 export class AuthModule {}

@@ -2,6 +2,12 @@ import { Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { Prisma } from '@prisma/client';
 
+export type PrismaInclude = {
+  [key: string]: boolean | { select: Record<string, boolean> };
+};
+
+export type ModelNames = Prisma.ModelName;
+
 export abstract class AbstractRepository<TDocument> {
   protected abstract readonly logger: Logger;
 
@@ -10,7 +16,7 @@ export abstract class AbstractRepository<TDocument> {
   async create<T extends TDocument>(
     model: string,
     data: Prisma.ShopCreateInput | Prisma.UserCreateInput,
-    include?: Record<string, boolean>,
+    include?: PrismaInclude,
     tx?: Prisma.TransactionClient,
   ): Promise<T> {
     try {

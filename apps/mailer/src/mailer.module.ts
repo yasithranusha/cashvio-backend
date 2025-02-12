@@ -12,6 +12,10 @@ import { ConfigModule } from '@nestjs/config';
       validationSchema: Joi.object({
         RABBIT_MQ_URI: Joi.string().required(),
         RABBIT_MQ_MAILER_QUEUE: Joi.string().required(),
+        MAILER_EMAIL: Joi.string().required(),
+        OAUTH_CLIENT_ID: Joi.string().required(),
+        OAUTH_CLIENT_SECRET: Joi.string().required(),
+        OAUTH_REFRESH_TOKEN: Joi.string().required(),
       }),
       envFilePath: ['.env'],
     }),

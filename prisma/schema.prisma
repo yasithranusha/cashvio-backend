@@ -27,7 +27,7 @@ enum Role {
 }
 
 model User {
-  id           String       @id @default(uuid())
+  id           String    @id @default(uuid())
   name         String
   dob          DateTime?
   profileImage String?
@@ -36,7 +36,7 @@ model User {
   password     String
   role         Role      @default(SHOP_STAFF)
   shop         Shop?     @relation(fields: [shopId], references: [id])
-  shopId       String?      @map("shop_id")
+  shopId       String?   @map("shop_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -47,7 +47,7 @@ model User {
 }
 
 model Shop {
-  id           String     @id @default(uuid())
+  id           String  @id @default(uuid())
   businessName String  @map("business_name")
   address      String
   shopLogo     String? @map("shop_logo")
@@ -61,4 +61,17 @@ model Shop {
 
   @@index([status])
   @@map("shops")
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  otp       String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("otps")
+  @@index([email])
+  @@index([expiresAt])
 }
