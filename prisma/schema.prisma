@@ -31,6 +31,7 @@ model User {
   name         String
   dob          DateTime?
   profileImage String?
+  contactNumber String?
   status       Status    @default(ACTIVE)
   email        String    @unique
   password     String
@@ -43,6 +44,8 @@ model User {
 
   @@index([email])
   @@index([shopId])
+  @@index([role])
+  @@index([status]) 
   @@map("users")
 }
 

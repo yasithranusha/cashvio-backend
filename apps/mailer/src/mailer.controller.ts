@@ -29,14 +29,13 @@ export class MailerController {
     @Payload() data: SendMailDto,
     @Ctx() context: RmqContext,
   ) {
-    this.logger.debug(`Received email request: ${JSON.stringify(data)}`);
     try {
       await this.mailerService.sendEmail(data);
-      this.logger.debug('Email sent successfully');
       this.rmqService.ack(context);
     } catch (error) {
       this.logger.error('Failed to send email:', error);
-      this.rmqService.ack(context); // Acknowledge even on error to prevent message requeuing
+      // The message is acknowledged even on error
+      this.rmqService.ack(context);
       throw new RpcException(error.message);
     }
   }
