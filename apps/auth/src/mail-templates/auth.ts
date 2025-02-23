@@ -40,7 +40,7 @@ export const registerMail = `
                                           <tr>
                                             <td align="left" class="esd-block-text es-p10t es-p10b">
                                               <p style="font-size:16px">
-                                                Hello, %name%! Thanks for joining us! You are now on our mailing list. This means you'll be the first&nbsp;to hear about our fresh&nbsp;collections and offers!
+                                                Hello, %name%! Thanks for joining us! We're excited to have you on board. Here's your OTP to complete your registration.
                                               </p>
                                             </td>
                                           </tr>
@@ -63,7 +63,7 @@ export const registerMail = `
                                           <tr>
                                             <td align="center" class="esd-block-button es-p10t es-p10b">
                                               <span class="es-button-border" style="border-radius: 6px">
-                                                <p class="es-button" style="border-left-width: 30px; border-right-width: 30px; border-radius: 6px; padding: 10px; color: white">
+                                                <p class="es-button" style="border-left-width: 30px; border-right-width: 30px; border-radius: 6px; padding: 10px; color: black">
                                                   %otp%
                                                 </p>
                                               </span>
@@ -75,7 +75,7 @@ export const registerMail = `
                                                 Got a question? Email us at&nbsp;<a target="_blank" href="mailto:">support@cashvio.net</a>
                                               </p>
                                               <p>
-                                                <br>Thanks,
+                                                <br>Thank you,
                                               </p>
                                               <p>
                                                 The CASHVIO Team!

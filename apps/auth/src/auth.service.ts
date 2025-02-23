@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { Role, Shop, Status, User, Prisma } from '@prisma/client';
+import { Role, Shop, User, Prisma, Status } from '@prisma/client';
 import { SellerRegisterDto } from './dto/seller.dto';
 import { MAILER_SERVICE } from './constants/services';
 import { ClientProxy } from '@nestjs/microservices';
@@ -16,11 +16,9 @@ import * as bcrypt from 'bcrypt';
 import { registerMail } from './mail-templates/auth';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SignInDto } from './dto/auth.dto';
-import { userSelectFeilds } from './types/user';
+import { AuthResponse, JwtPayload, userSelectFeilds } from './types/user';
 import { PrismaService } from '@app/common/database/prisma.service';
-import { JwtPayload } from './types/jwt';
 import { JwtService } from '@nestjs/jwt';
-import { AuthResponse } from './types/auth';
 
 export interface ShopWithUsers extends Shop {
   users: Array<Omit<User, 'password'>>;
@@ -140,13 +138,74 @@ export class AuthService {
   }
 
   async validateJwtUser(userId: string) {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-      select: userSelectFeilds,
-    });
+    this.logger.debug(`Validating JWT user with ID: ${userId}`);
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: userSelectFeilds,
+      });
+
+      if (!user) {
+        this.logger.warn(`No user found for JWT validation with ID: ${userId}`);
+      } else {
+        this.logger.debug(`JWT user validation successful for ID: ${userId}`);
+      }
+
+      return user;
+    } catch (error) {
+      this.logger.error(`Error validating JWT user: ${userId}`, error.stack);
+      throw error;
+    }
+  }
+
+  async validateUser(email: string, password: string): Promise<User> {
+    if (!email || !password) {
+      this.logger.error('Validation failed: Missing credentials');
+      throw new BadRequestException('Email and password are required');
+    }
+
+    this.logger.debug(`Validating user credentials for email: ${email}`);
+
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        this.logger.warn(`User not found with email: ${email}`);
+        throw new BadRequestException('Invalid email or password');
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      this.logger.debug(
+        `Password validation result for ${email}: ${isPasswordValid}`,
+      );
+
+      if (!isPasswordValid) {
+        this.logger.warn(`Invalid password attempt for user: ${email}`);
+        throw new BadRequestException('Invalid email or password');
+      }
+
+      if (user.status === Status.INACTIVE) {
+        this.logger.warn(`Inactive account access attempt: ${email}`);
+        throw new BadRequestException('Account is Blocked');
+      }
+
+      this.logger.debug(`User validation successful for: ${email}`);
+      return user;
+    } catch (error) {
+      this.logger.error(`Error validating user: ${email}`, error.stack);
+      throw error;
+    }
   }
 
   async signIn(signInDto: SignInDto): Promise<AuthResponse> {
+    if (!signInDto?.email || !signInDto?.password) {
+      this.logger.error('Invalid sign-in attempt: Missing credentials');
+      throw new BadRequestException('Email and password are required');
+    }
+
+    this.logger.debug(`Sign-in attempt for email: ${signInDto.email}`);
     const user = await this.validateUser(signInDto.email, signInDto.password);
 
     const payload: JwtPayload = {

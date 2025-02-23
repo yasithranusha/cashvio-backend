@@ -12,6 +12,8 @@ import { UsersService } from './users.service';
 import { GetAllUsers, UpdateUserDto } from './dto/user.dto';
 import { PaginatedResponse } from '@app/common/types/response';
 import { UserWithoutPassword } from '../types/user';
+import { Roles } from '../decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
@@ -34,7 +36,7 @@ export class UsersController {
   }
 
   @Get('email/:email')
-  @Roles(Role.ADMIN, Role.SHOP_OWNER)
+  @Roles(Role.ADMIN)
   async findByEmail(
     @Param('email') email: string,
   ): Promise<UserWithoutPassword> {
