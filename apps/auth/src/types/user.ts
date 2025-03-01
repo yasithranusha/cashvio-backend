@@ -14,6 +14,8 @@ export const userSelectFeilds = {
   shopId: true,
   createdAt: true,
   updatedAt: true,
+  refreshToken: true,
+  refreshTokenExp: true,
 } as const;
 
 export interface JwtPayload {

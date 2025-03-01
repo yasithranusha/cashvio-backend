@@ -38,6 +38,8 @@ model User {
   role         Role      @default(SHOP_STAFF)
   shop         Shop?     @relation(fields: [shopId], references: [id])
   shopId       String?   @map("shop_id")
+  refreshToken    String?
+  refreshTokenExp DateTime?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
