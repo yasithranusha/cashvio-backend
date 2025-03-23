@@ -37,6 +37,8 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_CALLBACK_URL: ${{ secrets.GOOGLE_CALLBACK_URL }}
           CUSTOMER_CLIENT_URL: ${{ secrets.CUSTOMER_CLIENT_URL }}
+          ADMIN_CLIENT_URL: ${{ secrets.ADMIN_CLIENT_URL }}
+          SHOP_CLIENT_URL: ${{ secrets.SHOP_CLIENT_URL }}
         run: |
           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
             # Setup service-specific env files from examples
@@ -66,6 +68,8 @@ jobs:
             sed -i 's|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> apps/auth/.env
             sed -i 's|^GOOGLE_CALLBACK_URL=.*|GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}" >> apps/auth/.env
             sed -i 's|^CUSTOMER_CLIENT_URL=.*|CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}|g' apps/auth/.env 2>/dev/null || echo "CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}" >> apps/auth/.env
+            sed -i 's|^ADMIN_CLIENT_URL=.*|ADMIN_CLIENT_URL=${ADMIN_CLIENT_URL}|g' apps/auth/.env 2>/dev/null || echo "ADMIN_CLIENT_URL=${ADMIN_CLIENT_URL}" >> apps/auth/.env
+            sed -i 's|^SHOP_CLIENT_URL=.*|SHOP_CLIENT_URL=${SHOP_CLIENT_URL}|g' apps/auth/.env 2>/dev/null || echo "SHOP_CLIENT_URL=${SHOP_CLIENT_URL}" >> apps/auth/.env
             
             # Mailer service specific variables
             sed -i 's|^RABBIT_MQ_MAILER_QUEUE=.*|RABBIT_MQ_MAILER_QUEUE=mailer|g' apps/mailer/.env 2>/dev/null || echo "RABBIT_MQ_MAILER_QUEUE=mailer" >> apps/mailer/.env
