@@ -507,13 +507,29 @@ export class AuthService {
       },
     );
 
+    // Get the appropriate client URL based on user role
+    let clientUrl: string;
+    switch (user.role) {
+      case Role.ADMIN:
+        clientUrl = this.configService.get('ADMIN_CLIENT_URL');
+        break;
+      case Role.SHOP_OWNER:
+      case Role.SHOP_STAFF:
+        clientUrl = this.configService.get('SHOP_CLIENT_URL');
+        break;
+      case Role.CUSTOMER:
+      default:
+        clientUrl = this.configService.get('CUSTOMER_CLIENT_URL');
+        break;
+    }
+
     await this.mailerClient.send('send_email', {
       recipients: [
         {
           address: email,
           name: user.name,
           variables: {
-            resetLink: `${this.configService.get('CLIENT_URL')}/reset-password?token=${token}`,
+            resetLink: `${clientUrl}/reset-password?token=${token}`,
           },
         },
       ],

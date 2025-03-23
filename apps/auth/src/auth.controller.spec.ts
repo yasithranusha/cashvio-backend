@@ -29,7 +29,7 @@ describe('AuthController', () => {
           useValue: {
             get: jest.fn().mockImplementation((key: string) => {
               switch (key) {
-                case 'CLIENT_URL':
+                case 'CUSTOMER_CLIENT_URL':
                   return 'http://localhost:3001';
                 default:
                   return null;

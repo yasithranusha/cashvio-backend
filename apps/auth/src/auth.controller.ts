@@ -80,7 +80,7 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Request() req, @Res() res: Response) {
     const tokens = await this.authService.generateTokens(req.user, true);
-    const clientUrl = this.configService.get('CLIENT_URL');
+    const clientUrl = this.configService.get('CUSTOMER_CLIENT_URL');
 
     res.redirect(
       `${clientUrl}/auth/callback?` +

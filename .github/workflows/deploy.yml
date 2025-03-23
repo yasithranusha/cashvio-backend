@@ -9,58 +9,73 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-          
+
       - name: Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ubuntu
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REFRESH_JWT_SECRET: ${{ secrets.REFRESH_JWT_SECRET }}
+          FORGET_PASSWORD_SECRET: ${{ secrets.FORGET_PASSWORD_SECRET }}
           GITHUB_PAT: ${{ secrets.GH_PAT }}
           REPO_NAME: ${{ github.repository }}
+          MAILER_EMAIL: ${{ secrets.MAILER_EMAIL }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CALLBACK_URL: ${{ secrets.GOOGLE_CALLBACK_URL }}
+          CUSTOMER_CLIENT_URL: ${{ secrets.CUSTOMER_CLIENT_URL }}
         run: |
           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
-            # Configure Git to use PAT
-            git config --global credential.helper store
-            echo "https://${GITHUB_PAT}:x-oauth-basic@github.com" > ~/.git-credentials
-            
-            # Navigate to project directory
-            mkdir -p ~/cashvio-backend
-            cd ~/cashvio-backend
-            
-            # Clone or update repository
-            if [ -d ".git" ]; then
-              git fetch --all
-              git reset --hard origin/production
-            else
-              git clone https://github.com/${REPO_NAME}.git .
-              git checkout production
-            fi
-            
-            # Setup environment variables
-            cat > .env << EOL
-            DATABASE_URL=${DATABASE_URL}
-            AUTH_SECRET=${AUTH_SECRET}
-            EOL
-            
-            # Setup service-specific env files
+            # Setup service-specific env files from examples
             cp -n apps/auth/.env.example apps/auth/.env 2>/dev/null || true
             cp -n apps/mailer/.env.example apps/mailer/.env 2>/dev/null || true
             cp -n apps/stock/.env.example apps/stock/.env 2>/dev/null || true
             
             # Update RabbitMQ URIs
-            sed -i 's|^RABBITMQ_URI=.*|RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/auth/.env 2>/dev/null || echo "RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/auth/.env
-            sed -i 's|^RABBITMQ_URI=.*|RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/mailer/.env 2>/dev/null || echo "RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/mailer/.env
-            sed -i 's|^RABBITMQ_URI=.*|RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/stock/.env 2>/dev/null || echo "RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/stock/.env
+            sed -i 's|^RABBIT_MQ_URI=.*|RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/auth/.env 2>/dev/null || echo "RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/auth/.env
+            sed -i 's|^RABBIT_MQ_URI=.*|RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/mailer/.env 2>/dev/null || echo "RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/mailer/.env
+            sed -i 's|^RABBIT_MQ_URI=.*|RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/stock/.env 2>/dev/null || echo "RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/stock/.env
+            
+            # Update JWT secrets with separate values
+            sed -i 's|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|g' apps/auth/.env 2>/dev/null || echo "JWT_SECRET=${JWT_SECRET}" >> apps/auth/.env
+            sed -i 's|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|g' apps/stock/.env 2>/dev/null || echo "JWT_SECRET=${JWT_SECRET}" >> apps/stock/.env
+            
+            # Auth Service specific variables
+            sed -i 's|^RABBIT_MQ_MAILER_QUEUE=.*|RABBIT_MQ_MAILER_QUEUE=mailer|g' apps/auth/.env 2>/dev/null || echo "RABBIT_MQ_MAILER_QUEUE=mailer" >> apps/auth/.env
+            sed -i 's|^JWT_EXPIRES_IN=.*|JWT_EXPIRES_IN=24h|g' apps/auth/.env 2>/dev/null || echo "JWT_EXPIRES_IN=24h" >> apps/auth/.env
+            sed -i 's|^REFRESH_JWT_SECRET=.*|REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}|g' apps/auth/.env 2>/dev/null || echo "REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}" >> apps/auth/.env
+            sed -i 's|^REFRESH_JWT_EXPIRES_IN=.*|REFRESH_JWT_EXPIRES_IN=7d|g' apps/auth/.env 2>/dev/null || echo "REFRESH_JWT_EXPIRES_IN=7d" >> apps/auth/.env
+            sed -i 's|^REFRESH_JWT_EXTENDED_EXPIRES_IN=.*|REFRESH_JWT_EXTENDED_EXPIRES_IN=30d|g' apps/auth/.env 2>/dev/null || echo "REFRESH_JWT_EXTENDED_EXPIRES_IN=30d" >> apps/auth/.env
+            sed -i 's|^FORGET_PASSWORD_SECRET=.*|FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}|g' apps/auth/.env 2>/dev/null || echo "FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}" >> apps/auth/.env
+            sed -i 's|^FORGET_PASSWORD_EXPIRES_IN=.*|FORGET_PASSWORD_EXPIRES_IN=2h|g' apps/auth/.env 2>/dev/null || echo "FORGET_PASSWORD_EXPIRES_IN=2h" >> apps/auth/.env
+            sed -i 's|^GOOGLE_CLIENT_ID=.*|GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> apps/auth/.env
+            sed -i 's|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> apps/auth/.env
+            sed -i 's|^GOOGLE_CALLBACK_URL=.*|GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}" >> apps/auth/.env
+            sed -i 's|^CUSTOMER_CLIENT_URL=.*|CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}|g' apps/auth/.env 2>/dev/null || echo "CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}" >> apps/auth/.env
+            
+            # Mailer service specific variables
+            sed -i 's|^RABBIT_MQ_MAILER_QUEUE=.*|RABBIT_MQ_MAILER_QUEUE=mailer|g' apps/mailer/.env 2>/dev/null || echo "RABBIT_MQ_MAILER_QUEUE=mailer" >> apps/mailer/.env
+            sed -i 's|^MAILER_EMAIL=.*|MAILER_EMAIL=${MAILER_EMAIL}|g' apps/mailer/.env 2>/dev/null || echo "MAILER_EMAIL=${MAILER_EMAIL}" >> apps/mailer/.env
+            sed -i 's|^OAUTH_CLIENT_ID=.*|OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}|g' apps/mailer/.env 2>/dev/null || echo "OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}" >> apps/mailer/.env
+            sed -i 's|^OAUTH_CLIENT_SECRET=.*|OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}|g' apps/mailer/.env 2>/dev/null || echo "OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}" >> apps/mailer/.env
+            sed -i 's|^OAUTH_REFRESH_TOKEN=.*|OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}|g' apps/mailer/.env 2>/dev/null || echo "OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}" >> apps/mailer/.env
+            
+            # Stock service specific variables
+            sed -i 's|^RABBIT_MQ_STOCK_QUEUE=.*|RABBIT_MQ_STOCK_QUEUE=stock|g' apps/stock/.env 2>/dev/null || echo "RABBIT_MQ_STOCK_QUEUE=stock" >> apps/stock/.env
+            sed -i 's|^JWT_EXPIRES_IN=.*|JWT_EXPIRES_IN=24h|g' apps/stock/.env 2>/dev/null || echo "JWT_EXPIRES_IN=24h" >> apps/stock/.env
             
             # Build and deploy with Docker Compose
             sudo docker-compose -f docker-compose-prod.yml down || true
