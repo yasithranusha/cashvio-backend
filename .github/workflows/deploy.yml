@@ -1,4 +1,4 @@
-name: Deploy to Production EC2
+name: Build and Deploy to Production
 
 on:
   push:
@@ -7,110 +7,195 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment: production
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push auth service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/auth/Dockerfile
+          push: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:${{ github.sha }}
+          target: production
+      
+      - name: Build and push mailer service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/mailer/Dockerfile
+          push: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:${{ github.sha }}
+          target: production
+      
+      - name: Build and push stock service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/stock/Dockerfile
+          push: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:${{ github.sha }}
+          target: production
+  
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-
+      
       - name: Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ubuntu
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          REFRESH_JWT_SECRET: ${{ secrets.REFRESH_JWT_SECRET }}
-          FORGET_PASSWORD_SECRET: ${{ secrets.FORGET_PASSWORD_SECRET }}
-          GITHUB_PAT: ${{ secrets.GH_PAT }}
-          REPO_NAME: ${{ github.repository }}
-          MAILER_EMAIL: ${{ secrets.MAILER_EMAIL }}
-          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
-          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
-          OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_CALLBACK_URL: ${{ secrets.GOOGLE_CALLBACK_URL }}
-          CUSTOMER_CLIENT_URL: ${{ secrets.CUSTOMER_CLIENT_URL }}
-          ADMIN_CLIENT_URL: ${{ secrets.ADMIN_CLIENT_URL }}
-          SHOP_CLIENT_URL: ${{ secrets.SHOP_CLIENT_URL }}
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
-            # Configure Git to use PAT
-            git config --global credential.helper store
-            echo "https://$GITHUB_PAT:x-oauth-basic@github.com" > ~/.git-credentials
-            
-            # Navigate to project directory
+          # Create SSH config to keep connection alive
+          mkdir -p ~/.ssh
+          echo "Host *
+            ServerAliveInterval 60
+            ServerAliveCountMax 10
+          " > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+          
+          # Create environment variables file to transfer to EC2
+          cat << EOF > env_vars.sh
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          export REFRESH_JWT_SECRET="${{ secrets.REFRESH_JWT_SECRET }}"
+          export FORGET_PASSWORD_SECRET="${{ secrets.FORGET_PASSWORD_SECRET }}"
+          export MAILER_EMAIL="${{ secrets.MAILER_EMAIL }}"
+          export OAUTH_CLIENT_ID="${{ secrets.OAUTH_CLIENT_ID }}"
+          export OAUTH_CLIENT_SECRET="${{ secrets.OAUTH_CLIENT_SECRET }}"
+          export OAUTH_REFRESH_TOKEN="${{ secrets.OAUTH_REFRESH_TOKEN }}"
+          export GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
+          export GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          export GOOGLE_CALLBACK_URL="${{ secrets.GOOGLE_CALLBACK_URL }}"
+          export CUSTOMER_CLIENT_URL="${{ secrets.CUSTOMER_CLIENT_URL }}"
+          export ADMIN_CLIENT_URL="${{ secrets.ADMIN_CLIENT_URL }}"
+          export SHOP_CLIENT_URL="${{ secrets.SHOP_CLIENT_URL }}"
+          export DOCKERHUB_USERNAME="${{ vars.DOCKERHUB_USERNAME }}"
+          export GITHUB_SHA="${{ github.sha }}"
+          EOF
+          
+          # Transfer environment file to EC2
+          scp -o StrictHostKeyChecking=no env_vars.sh $EC2_USER@$EC2_HOST:~/cashvio-backend/
+          
+          # Execute commands on EC2
+          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'ENDSSH'
+            # Create project directory if it doesn't exist
             mkdir -p ~/cashvio-backend
             cd ~/cashvio-backend
             
-            # Clone or update repository
-            if [ -d ".git" ]; then
-              git fetch --all
-              git reset --hard origin/production
-            else
-              git clone https://github.com/$REPO_NAME.git .
-              git checkout production
-            fi
+            # Source environment variables
+            source env_vars.sh
             
-            # Setup root env file with database URL
-            echo "DATABASE_URL=\"$DATABASE_URL\"" > .env
+            # Create docker-compose.yml
+            cat > docker-compose.yml << EOF
+            version: '3.8'
             
-            # Setup service-specific env files from examples
-            cp -n apps/auth/.env.example apps/auth/.env 2>/dev/null || true
-            cp -n apps/mailer/.env.example apps/mailer/.env 2>/dev/null || true
-            cp -n apps/stock/.env.example apps/stock/.env 2>/dev/null || true
+            services:
+              rabbitmq:
+                image: rabbitmq:3-management
+                ports:
+                  - "5672:5672"
+                  - "15672:15672"
+                environment:
+                  - RABBITMQ_DEFAULT_USER=guest
+                  - RABBITMQ_DEFAULT_PASS=guest
+                volumes:
+                  - rabbitmq_data:/var/lib/rabbitmq
+                healthcheck:
+                  test: ["CMD", "rabbitmqctl", "status"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 5
             
-            # Update RabbitMQ URIs
-            sed -i 's|^RABBIT_MQ_URI=.*|RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/auth/.env 2>/dev/null || echo "RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/auth/.env
-            sed -i 's|^RABBIT_MQ_URI=.*|RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/mailer/.env 2>/dev/null || echo "RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/mailer/.env
-            sed -i 's|^RABBIT_MQ_URI=.*|RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/stock/.env 2>/dev/null || echo "RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/stock/.env
+              auth:
+                image: ${DOCKERHUB_USERNAME}/cashvio-auth:${GITHUB_SHA}
+                ports:
+                  - "3000:3000"
+                environment:
+                  - DATABASE_URL=${DATABASE_URL}
+                  - JWT_SECRET=${JWT_SECRET}
+                  - REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}
+                  - FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}
+                  - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
+                  - RABBIT_MQ_MAILER_QUEUE=mailer
+                  - RABBIT_MQ_AUTH_QUEUE=auth
+                  - JWT_EXPIRES_IN=24h
+                  - REFRESH_JWT_EXPIRES_IN=7d
+                  - REFRESH_JWT_EXTENDED_EXPIRES_IN=30d
+                  - FORGET_PASSWORD_EXPIRES_IN=2h
+                  - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+                  - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+                  - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+                  - CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}
+                  - ADMIN_CLIENT_URL=${ADMIN_CLIENT_URL}
+                  - SHOP_CLIENT_URL=${SHOP_CLIENT_URL}
+                depends_on:
+                  rabbitmq:
+                    condition: service_healthy
             
-            # Update JWT secrets with separate values
-            sed -i 's|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g' apps/auth/.env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> apps/auth/.env
-            sed -i 's|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g' apps/stock/.env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> apps/stock/.env
+              mailer:
+                image: ${DOCKERHUB_USERNAME}/cashvio-mailer:${GITHUB_SHA}
+                environment:
+                  - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
+                  - RABBIT_MQ_MAILER_QUEUE=mailer
+                  - MAILER_EMAIL=${MAILER_EMAIL}
+                  - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+                  - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+                  - OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}
+                depends_on:
+                  rabbitmq:
+                    condition: service_healthy
             
-            # Auth Service specific variables
-            sed -i 's|^RABBIT_MQ_MAILER_QUEUE=.*|RABBIT_MQ_MAILER_QUEUE=mailer|g' apps/auth/.env 2>/dev/null || echo "RABBIT_MQ_MAILER_QUEUE=mailer" >> apps/auth/.env
-            sed -i 's|^RABBIT_MQ_AUTH_QUEUE=.*|RABBIT_MQ_AUTH_QUEUE=auth|g' apps/auth/.env 2>/dev/null || echo "RABBIT_MQ_AUTH_QUEUE=auth" >> apps/auth/.env
-            sed -i 's|^JWT_EXPIRES_IN=.*|JWT_EXPIRES_IN=24h|g' apps/auth/.env 2>/dev/null || echo "JWT_EXPIRES_IN=24h" >> apps/auth/.env
-            sed -i 's|^REFRESH_JWT_SECRET=.*|REFRESH_JWT_SECRET=$REFRESH_JWT_SECRET|g' apps/auth/.env 2>/dev/null || echo "REFRESH_JWT_SECRET=$REFRESH_JWT_SECRET" >> apps/auth/.env
-            sed -i 's|^REFRESH_JWT_EXPIRES_IN=.*|REFRESH_JWT_EXPIRES_IN=7d|g' apps/auth/.env 2>/dev/null || echo "REFRESH_JWT_EXPIRES_IN=7d" >> apps/auth/.env
-            sed -i 's|^REFRESH_JWT_EXTENDED_EXPIRES_IN=.*|REFRESH_JWT_EXTENDED_EXPIRES_IN=30d|g' apps/auth/.env 2>/dev/null || echo "REFRESH_JWT_EXTENDED_EXPIRES_IN=30d" >> apps/auth/.env
-            sed -i 's|^FORGET_PASSWORD_SECRET=.*|FORGET_PASSWORD_SECRET=$FORGET_PASSWORD_SECRET|g' apps/auth/.env 2>/dev/null || echo "FORGET_PASSWORD_SECRET=$FORGET_PASSWORD_SECRET" >> apps/auth/.env
-            sed -i 's|^FORGET_PASSWORD_EXPIRES_IN=.*|FORGET_PASSWORD_EXPIRES_IN=2h|g' apps/auth/.env 2>/dev/null || echo "FORGET_PASSWORD_EXPIRES_IN=2h" >> apps/auth/.env
-            sed -i 's|^GOOGLE_CLIENT_ID=.*|GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> apps/auth/.env
-            sed -i 's|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> apps/auth/.env
-            sed -i 's|^GOOGLE_CALLBACK_URL=.*|GOOGLE_CALLBACK_URL=$GOOGLE_CALLBACK_URL|g' apps/auth/.env 2>/dev/null || echo "GOOGLE_CALLBACK_URL=$GOOGLE_CALLBACK_URL" >> apps/auth/.env
-            sed -i 's|^CUSTOMER_CLIENT_URL=.*|CUSTOMER_CLIENT_URL=$CUSTOMER_CLIENT_URL|g' apps/auth/.env 2>/dev/null || echo "CUSTOMER_CLIENT_URL=$CUSTOMER_CLIENT_URL" >> apps/auth/.env
-            sed -i 's|^ADMIN_CLIENT_URL=.*|ADMIN_CLIENT_URL=$ADMIN_CLIENT_URL|g' apps/auth/.env 2>/dev/null || echo "ADMIN_CLIENT_URL=$ADMIN_CLIENT_URL" >> apps/auth/.env
-            sed -i 's|^SHOP_CLIENT_URL=.*|SHOP_CLIENT_URL=$SHOP_CLIENT_URL|g' apps/auth/.env 2>/dev/null || echo "SHOP_CLIENT_URL=$SHOP_CLIENT_URL" >> apps/auth/.env
+              stock:
+                image: ${DOCKERHUB_USERNAME}/cashvio-stock:${GITHUB_SHA}
+                ports:
+                  - "3002:3002"
+                environment:
+                  - DATABASE_URL=${DATABASE_URL}
+                  - JWT_SECRET=${JWT_SECRET}
+                  - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
+                  - RABBIT_MQ_STOCK_QUEUE=stock
+                  - JWT_EXPIRES_IN=24h
+                depends_on:
+                  rabbitmq:
+                    condition: service_healthy
+
+            volumes:
+              rabbitmq_data:
+            EOF
             
-            # Mailer service specific variables
-            sed -i 's|^RABBIT_MQ_MAILER_QUEUE=.*|RABBIT_MQ_MAILER_QUEUE=mailer|g' apps/mailer/.env 2>/dev/null || echo "RABBIT_MQ_MAILER_QUEUE=mailer" >> apps/mailer/.env
-            sed -i 's|^MAILER_EMAIL=.*|MAILER_EMAIL=$MAILER_EMAIL|g' apps/mailer/.env 2>/dev/null || echo "MAILER_EMAIL=$MAILER_EMAIL" >> apps/mailer/.env
-            sed -i 's|^OAUTH_CLIENT_ID=.*|OAUTH_CLIENT_ID=$OAUTH_CLIENT_ID|g' apps/mailer/.env 2>/dev/null || echo "OAUTH_CLIENT_ID=$OAUTH_CLIENT_ID" >> apps/mailer/.env
-            sed -i 's|^OAUTH_CLIENT_SECRET=.*|OAUTH_CLIENT_SECRET=$OAUTH_CLIENT_SECRET|g' apps/mailer/.env 2>/dev/null || echo "OAUTH_CLIENT_SECRET=$OAUTH_CLIENT_SECRET" >> apps/mailer/.env
-            sed -i 's|^OAUTH_REFRESH_TOKEN=.*|OAUTH_REFRESH_TOKEN=$OAUTH_REFRESH_TOKEN|g' apps/mailer/.env 2>/dev/null || echo "OAUTH_REFRESH_TOKEN=$OAUTH_REFRESH_TOKEN" >> apps/mailer/.env
+            # Pull latest images and start containers
+            sudo docker-compose pull
+            sudo docker-compose up -d
             
-            # Stock service specific variables
-            sed -i 's|^RABBIT_MQ_STOCK_QUEUE=.*|RABBIT_MQ_STOCK_QUEUE=stock|g' apps/stock/.env 2>/dev/null || echo "RABBIT_MQ_STOCK_QUEUE=stock" >> apps/stock/.env
-            sed -i 's|^JWT_EXPIRES_IN=.*|JWT_EXPIRES_IN=24h|g' apps/stock/.env 2>/dev/null || echo "JWT_EXPIRES_IN=24h" >> apps/stock/.env
+            # Clean up old images to save disk space
+            sudo docker image prune -af
             
-            # Build and deploy with Docker Compose
-            sudo docker-compose -f docker-compose-prod.yml down || true
-            sudo docker-compose -f docker-compose-prod.yml build --no-cache
-            sudo docker-compose -f docker-compose-prod.yml up -d
-            
-            # Clean up
-            rm -f ~/.git-credentials
-            git config --global --unset credential.helper
-            
-            echo "Deployment completed successfully!"
-          EOF
+            # Remove environment variables file
+            rm env_vars.sh
+          ENDSSH
+          
+          # Remove local environment file
+          rm env_vars.sh
