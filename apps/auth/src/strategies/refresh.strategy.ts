@@ -32,7 +32,7 @@ export class RefreshStrategy extends PassportStrategy(Strategy, 'refresh-jwt') {
         payload.sub,
         refreshToken,
       );
-      return result;
+      return { ...result, sub: payload.sub };
     } catch (error) {
       throw error;
     }

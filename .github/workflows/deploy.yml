@@ -1,0 +1,75 @@
+name: Deploy to Production EC2
+
+on:
+  push:
+    branches:
+      - production
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+          
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ubuntu
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          GITHUB_PAT: ${{ secrets.GH_PAT }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
+            # Configure Git to use PAT
+            git config --global credential.helper store
+            echo "https://${GITHUB_PAT}:x-oauth-basic@github.com" > ~/.git-credentials
+            
+            # Navigate to project directory
+            mkdir -p ~/cashvio-backend
+            cd ~/cashvio-backend
+            
+            # Clone or update repository
+            if [ -d ".git" ]; then
+              git fetch --all
+              git reset --hard origin/production
+            else
+              git clone https://github.com/${REPO_NAME}.git .
+              git checkout production
+            fi
+            
+            # Setup environment variables
+            cat > .env << EOL
+            DATABASE_URL=${DATABASE_URL}
+            AUTH_SECRET=${AUTH_SECRET}
+            EOL
+            
+            # Setup service-specific env files
+            cp -n apps/auth/.env.example apps/auth/.env 2>/dev/null || true
+            cp -n apps/mailer/.env.example apps/mailer/.env 2>/dev/null || true
+            cp -n apps/stock/.env.example apps/stock/.env 2>/dev/null || true
+            
+            # Update RabbitMQ URIs
+            sed -i 's|^RABBITMQ_URI=.*|RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/auth/.env 2>/dev/null || echo "RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/auth/.env
+            sed -i 's|^RABBITMQ_URI=.*|RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/mailer/.env 2>/dev/null || echo "RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/mailer/.env
+            sed -i 's|^RABBITMQ_URI=.*|RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672|g' apps/stock/.env 2>/dev/null || echo "RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672" >> apps/stock/.env
+            
+            # Build and deploy with Docker Compose
+            sudo docker-compose -f docker-compose-prod.yml down || true
+            sudo docker-compose -f docker-compose-prod.yml build --no-cache
+            sudo docker-compose -f docker-compose-prod.yml up -d
+            
+            # Clean up
+            rm -f ~/.git-credentials
+            git config --global --unset credential.helper
+            
+            echo "Deployment completed successfully!"
+          EOF

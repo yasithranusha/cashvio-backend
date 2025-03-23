@@ -11,7 +11,7 @@ export const userSelectFeilds = {
   contactNumber: true,
   status: true,
   role: true,
-  shopId: true,
+  defaultShopId: true,
   createdAt: true,
   updatedAt: true,
   refreshToken: true,

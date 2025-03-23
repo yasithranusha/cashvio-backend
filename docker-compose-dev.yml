@@ -32,6 +32,24 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
 
+  stock:
+    build:
+      context: .
+      dockerfile: ./apps/stock/Dockerfile
+      target: development
+    command: yarn start:dev stock
+    env_file:
+      - .env
+      - ./apps/stock/.env
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - 3002:3002
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   rabbitmq:
     image: rabbitmq
     ports:

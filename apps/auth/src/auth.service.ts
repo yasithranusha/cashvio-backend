@@ -96,6 +96,10 @@ export class AuthService {
       // Check if user already exists
       const existingUser = await this.prisma.user.findUnique({
         where: { email },
+        select: {
+          id: true,
+          email: true,
+        },
       });
 
       if (existingUser) {
@@ -266,6 +270,9 @@ export class AuthService {
   }
 
   async validateRefreshToken(userId: string, refreshToken: string) {
+    this.logger.debug(`Validating refresh token for userId: ${userId}`);
+    this.logger.debug(`Refresh token: ${refreshToken}`);
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -311,11 +318,15 @@ export class AuthService {
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
+    this.logger.debug(`Refreshing tokens for userId: ${userId}`);
+    this.logger.debug(`Refresh token: ${refreshToken}`);
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user || !user.refreshToken) {
+      this.logger.warn(`No refresh token found for user: ${userId}`);
       throw new UnauthorizedException('Access Denied');
     }
 
@@ -324,6 +335,7 @@ export class AuthService {
       user.refreshToken,
     );
     if (!refreshTokenMatches) {
+      this.logger.warn(`Invalid refresh token for user: ${userId}`);
       throw new UnauthorizedException('Access Denied');
     }
 
@@ -386,9 +398,15 @@ export class AuthService {
               contactNumber: data.contactNumber,
               profileImage: data.profileImage,
               role: Role.SHOP_OWNER,
-              shopId: shop.id,
+              defaultShopId: shop.id, // Set default shop
               refreshToken: null,
               refreshTokenExp: null,
+              shopAccess: {
+                create: {
+                  shopId: shop.id,
+                  role: Role.SHOP_OWNER,
+                },
+              },
             },
           });
 
@@ -396,11 +414,18 @@ export class AuthService {
             where: { id: shop.id },
             include: {
               users: {
-                select: {
-                  ...userSelectFeilds,
-                  refreshToken: true,
-                  refreshTokenExp: true,
+                include: {
+                  user: {
+                    select: {
+                      ...userSelectFeilds,
+                      refreshToken: true,
+                      refreshTokenExp: true,
+                    },
+                  },
                 },
+              },
+              defaultForUsers: {
+                select: userSelectFeilds,
               },
             },
           });
@@ -409,7 +434,14 @@ export class AuthService {
             throw new InternalServerErrorException('Failed to create shop');
           }
 
-          return result as ShopWithUsers;
+          const formattedResult = {
+            ...result,
+            users: result.defaultForUsers.concat(
+              result.users.map((userShop) => userShop.user),
+            ),
+          };
+
+          return formattedResult as ShopWithUsers;
         },
         {
           maxWait: 5000,

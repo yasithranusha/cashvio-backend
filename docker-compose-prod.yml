@@ -1,0 +1,61 @@
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: ./apps/auth/Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+      - ./apps/auth/.env
+    ports:
+      - 3000:3000
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  mailer:
+    build:
+      context: .
+      dockerfile: ./apps/mailer/Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - ./apps/mailer/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  stock:
+    build:
+      context: .
+      dockerfile: ./apps/stock/Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+      - ./apps/stock/.env
+    ports:
+      - 3002:3002
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq
+    restart: always
+    ports:
+      - '5672:5672'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ['CMD', 'rabbitmqctl', 'status']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rabbitmq_data:

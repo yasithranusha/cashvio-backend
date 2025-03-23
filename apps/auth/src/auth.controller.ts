@@ -6,6 +6,7 @@ import {
   Request,
   Get,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { AuthService, ShopWithUsers } from './auth.service';
 import { SellerRegisterDto } from './dto/seller.dto';
@@ -21,6 +22,8 @@ import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
@@ -47,11 +50,14 @@ export class AuthController {
     return this.authService.signIn(req.user);
   }
 
+  @Public()
   @Post('refresh')
   @UseGuards(RefreshAuthGuard)
   async refreshTokens(@Request() req) {
     const userId = req.user.sub;
     const refreshToken = req.headers.authorization?.split(' ')[1];
+    this.logger.debug(`Received refresh request for userId: ${userId}`);
+    this.logger.debug(`Received refresh token: ${refreshToken}`);
     return this.authService.refreshTokens(userId, refreshToken);
   }
 

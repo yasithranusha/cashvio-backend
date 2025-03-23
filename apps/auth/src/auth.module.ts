@@ -6,6 +6,7 @@ import * as Joi from 'joi';
 import { DatabaseModule, RmqModule } from '@app/common';
 import { MAILER_SERVICE } from './constants/services';
 import { UsersModule } from './users/users.module';
+import { ShopModule } from './shop/shop.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtModule } from '@nestjs/jwt';
@@ -56,6 +57,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
     ScheduleModule.forRoot(),
     DatabaseModule,
     UsersModule,
+    ShopModule,
   ],
   controllers: [AuthController],
   providers: [
