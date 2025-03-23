@@ -1,4 +1,11 @@
-import { IsString, IsEmail, IsOptional, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  MinLength,
+  IsMobilePhone,
+  Length,
+} from 'class-validator';
 
 export class SellerRegisterDto {
   // User details
@@ -19,6 +26,10 @@ export class SellerRegisterDto {
   @IsString()
   profileImage?: string;
 
+  @IsOptional()
+  @IsMobilePhone()
+  contactNumber?: string;
+
   // Shop details
   @IsString()
   businessName: string;
@@ -37,4 +48,8 @@ export class SellerRegisterDto {
   @IsOptional()
   @IsString()
   shopBanner?: string;
+
+  @IsString()
+  @Length(6, 6, { message: 'Invalid OTP' })
+  otp: string;
 }
