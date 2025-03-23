@@ -30,6 +30,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
         DATABASE_URL: Joi.string().required(),
         RABBIT_MQ_URI: Joi.string().required(),
         RABBIT_MQ_MAILER_QUEUE: Joi.string().required(),
+        RABBIT_MQ_AUTH_QUEUE: Joi.string().required(),
         JWT_SECRET: Joi.string().required(),
         JWT_EXPIRES_IN: Joi.string().required(),
         REFRESH_JWT_SECRET: Joi.string().required(),
