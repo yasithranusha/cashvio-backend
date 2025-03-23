@@ -12,6 +12,7 @@ COPY nest-cli.json ./
 FROM base AS development
 RUN yarn install
 COPY . .
+RUN yarn prisma generate
 CMD ["yarn", "start:dev", "mailer"]
 
 # Build stage

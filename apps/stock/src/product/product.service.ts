@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@app/common/database/prisma.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
-import { Product, ProductStatus, Status } from '@prisma/client';
+import { Product, ProductStatus, Prisma } from '@prisma/client';
 import { PaginatedResponse } from '@app/common/types/response';
 
 @Injectable()
@@ -45,17 +45,33 @@ export class ProductService {
         }
       }
 
+      // Create product with proper typing
+      const productData: Prisma.ProductCreateInput = {
+        name: createProductDto.name,
+        description: createProductDto.description,
+        displayName: createProductDto.displayName,
+        keepingUnits: createProductDto.keepingUnits,
+        imageUrls: createProductDto.imageUrls || [],
+        status: createProductDto.status || ProductStatus.ACTIVE,
+        shop: { connect: { id: createProductDto.shopId } },
+        ...(createProductDto.supplierId && {
+          supplier: { connect: { id: createProductDto.supplierId } },
+        }),
+        ...(createProductDto.categoryId && {
+          category: { connect: { id: createProductDto.categoryId } },
+        }),
+        ...(createProductDto.subCategoryId && {
+          subCategory: { connect: { id: createProductDto.subCategoryId } },
+        }),
+        ...(createProductDto.subSubCategoryId && {
+          subSubCategory: {
+            connect: { id: createProductDto.subSubCategoryId },
+          },
+        }),
+      };
+
       const product = await this.prisma.product.create({
-        data: {
-          name: createProductDto.name,
-          description: createProductDto.description,
-          displayName: createProductDto.displayName,
-          keepingUnits: createProductDto.keepingUnits,
-          imageUrls: createProductDto.imageUrls || [],
-          status: createProductDto.status || Status.ACTIVE,
-          shopId: createProductDto.shopId,
-          supplierId: createProductDto.supplierId,
-        },
+        data: productData,
       });
 
       return product;
@@ -83,7 +99,7 @@ export class ProductService {
 
     const skip = (page - 1) * limit;
 
-    const where: any = { shopId };
+    const where: Prisma.ProductWhereInput = { shopId };
     if (status) where.status = status;
     if (supplierId) where.supplierId = supplierId;
     if (categoryId) where.categoryId = categoryId;
@@ -107,9 +123,9 @@ export class ProductService {
           orderBy: { createdAt: 'desc' },
           include: {
             supplier: true,
-            category: true,
-            subCategory: true,
-            subSubCategory: true,
+            ...(categoryId && { category: true }),
+            ...(subCategoryId && { subCategory: true }),
+            ...(subSubCategoryId && { subSubCategory: true }),
             _count: {
               select: { items: true },
             },
@@ -132,29 +148,6 @@ export class ProductService {
         `Error getting products: ${error.message}`,
         error.stack,
       );
-      throw error;
-    }
-  }
-
-  async getProductById(id: string): Promise<Product> {
-    this.logger.debug(`Getting product ${id}`);
-
-    try {
-      const product = await this.prisma.product.findUnique({
-        where: { id },
-        include: {
-          supplier: true,
-          items: true,
-        },
-      });
-
-      if (!product) {
-        throw new NotFoundException('Product not found');
-      }
-
-      return product;
-    } catch (error) {
-      this.logger.error(`Error getting product: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -193,9 +186,49 @@ export class ProductService {
         }
       }
 
+      // Create properly typed update data
+      const updateData: Prisma.ProductUpdateInput = {};
+
+      if (updateProductDto.name !== undefined)
+        updateData.name = updateProductDto.name;
+      if (updateProductDto.description !== undefined)
+        updateData.description = updateProductDto.description;
+      if (updateProductDto.displayName !== undefined)
+        updateData.displayName = updateProductDto.displayName;
+      if (updateProductDto.keepingUnits !== undefined)
+        updateData.keepingUnits = updateProductDto.keepingUnits;
+      if (updateProductDto.imageUrls !== undefined)
+        updateData.imageUrls = updateProductDto.imageUrls;
+      if (updateProductDto.status !== undefined)
+        updateData.status = updateProductDto.status;
+
+      if (updateProductDto.supplierId !== undefined) {
+        updateData.supplier = updateProductDto.supplierId
+          ? { connect: { id: updateProductDto.supplierId } }
+          : { disconnect: true };
+      }
+
+      if (updateProductDto.categoryId !== undefined) {
+        updateData.category = updateProductDto.categoryId
+          ? { connect: { id: updateProductDto.categoryId } }
+          : { disconnect: true };
+      }
+
+      if (updateProductDto.subCategoryId !== undefined) {
+        updateData.subCategory = updateProductDto.subCategoryId
+          ? { connect: { id: updateProductDto.subCategoryId } }
+          : { disconnect: true };
+      }
+
+      if (updateProductDto.subSubCategoryId !== undefined) {
+        updateData.subSubCategory = updateProductDto.subSubCategoryId
+          ? { connect: { id: updateProductDto.subSubCategoryId } }
+          : { disconnect: true };
+      }
+
       const updatedProduct = await this.prisma.product.update({
         where: { id },
-        data: updateProductDto,
+        data: updateData,
       });
 
       return updatedProduct;
@@ -204,6 +237,34 @@ export class ProductService {
         `Error updating product: ${error.message}`,
         error.stack,
       );
+      throw error;
+    }
+  }
+
+  async getProductById(id: string): Promise<Product> {
+    this.logger.debug(`Getting product ${id}`);
+
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id },
+        include: {
+          supplier: true,
+          category: true,
+          subCategory: true,
+          subSubCategory: true,
+          _count: {
+            select: { items: true },
+          },
+        },
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      return product;
+    } catch (error) {
+      this.logger.error(`Error getting product: ${error.message}`, error.stack);
       throw error;
     }
   }

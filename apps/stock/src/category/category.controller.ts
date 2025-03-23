@@ -17,10 +17,17 @@ import {
   CreateCategoryDto,
   GetCategoriesDto,
   UpdateCategoryDto,
+} from './dto/category.dto';
+import {
+  CreateSubCategoryDto,
+  GetSubCategoriesDto,
+  UpdateSubCategoryDto,
+} from './dto/subcategory.dto';
+import {
   CreateSubSubCategoryDto,
   GetSubSubCategoriesDto,
   UpdateSubSubCategoryDto,
-} from './dto/category.dto';
+} from './dto/subsubcategory.dto';
 import { Roles } from '@app/common/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 

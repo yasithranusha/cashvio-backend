@@ -1,69 +1,18 @@
-import { Type } from 'class-transformer';
+import { IsString } from 'class-validator';
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsInt,
-  Min,
-  IsUrl,
-} from 'class-validator';
-import { ProductStatus } from '@prisma/client';
+  BaseCategoryCreateDto,
+  BaseCategoryUpdateDto,
+  BaseCategoryGetDto,
+} from './base-category.dto';
 
-export class CreateSubCategoryDto {
-  @IsString()
-  name: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsUrl()
-  imageUrl?: string;
-
-  @IsOptional()
-  @IsEnum(ProductStatus)
-  status?: ProductStatus;
-
+export class CreateSubCategoryDto extends BaseCategoryCreateDto {
   @IsString()
   categoryId: string;
 }
 
-export class UpdateSubCategoryDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
+export class UpdateSubCategoryDto extends BaseCategoryUpdateDto {}
 
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsUrl()
-  imageUrl?: string;
-
-  @IsOptional()
-  @IsEnum(ProductStatus)
-  status?: ProductStatus;
-}
-
-export class GetSubCategoriesDto {
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  @Type(() => Number)
-  page: number = 1;
-
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  @Type(() => Number)
-  limit: number = 10;
-
+export class GetSubCategoriesDto extends BaseCategoryGetDto {
   @IsString()
   categoryId: string;
-
-  @IsOptional()
-  @IsEnum(ProductStatus)
-  status?: ProductStatus;
 }
