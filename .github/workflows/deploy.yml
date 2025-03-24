@@ -228,10 +228,4 @@ jobs:
             # Free up disk space
             sudo apt-get clean
             sudo apt-get autoremove -y
-            
-            # Remove environment variables file
-            rm env_vars.sh
-          ENDSSH
-          
-          # Remove local environment file
-          rm env_vars.sh
+          EOF
