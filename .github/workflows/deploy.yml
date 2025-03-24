@@ -20,7 +20,7 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
       - name: Build and push auth service
@@ -29,7 +29,7 @@ jobs:
           context: .
           file: ./apps/auth/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cashvio-auth:latest,${{ secrets.DOCKERHUB_USERNAME }}/cashvio-auth:${{ github.sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:${{ github.sha }}
           target: production
 
   build-mailer:
@@ -54,7 +54,7 @@ jobs:
           context: .
           file: ./apps/mailer/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cashvio-mailer:latest,${{ secrets.DOCKERHUB_USERNAME }}/cashvio-mailer:${{ github.sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:${{ github.sha }}
           target: production
 
   build-stock:
@@ -79,7 +79,7 @@ jobs:
           context: .
           file: ./apps/stock/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cashvio-stock:latest,${{ secrets.DOCKERHUB_USERNAME }}/cashvio-stock:${{ github.sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:${{ github.sha }}
           target: production
   
   deploy:
@@ -97,7 +97,7 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ubuntu
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
           # Create SSH config to keep connection alive
@@ -124,7 +124,7 @@ jobs:
           export CUSTOMER_CLIENT_URL="${{ secrets.CUSTOMER_CLIENT_URL }}"
           export ADMIN_CLIENT_URL="${{ secrets.ADMIN_CLIENT_URL }}"
           export SHOP_CLIENT_URL="${{ secrets.SHOP_CLIENT_URL }}"
-          export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
+          export DOCKERHUB_USERNAME="${{ vars.DOCKERHUB_USERNAME }}"
           export GITHUB_SHA="${{ github.sha }}"
           EOF
           
