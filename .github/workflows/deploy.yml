@@ -9,20 +9,20 @@ on:
 jobs:
   build-auth:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push auth service
         uses: docker/build-push-action@v5
         with:
@@ -32,47 +32,47 @@ jobs:
           tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:${{ github.sha }}
           target: production
 
-  build-mailer:
+  build-mailer-uploader:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Build and push mailer service
+
+      - name: Build and push mailer-uploader service
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./apps/mailer/Dockerfile
+          file: ./apps/mailer-uploader/Dockerfile
           push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:${{ github.sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer-uploader:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer-uploader:${{ github.sha }}
           target: production
 
   build-stock:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push stock service
         uses: docker/build-push-action@v5
         with:
@@ -81,18 +81,18 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:${{ github.sha }}
           target: production
-  
+
   deploy:
-    needs: [build-auth, build-mailer, build-stock]
+    needs: [build-auth, build-mailer-uploader, build-stock]
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-      
+
       - name: Create Docker Compose File
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
@@ -111,11 +111,15 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
         run: |
           # Create docker-compose.yml file with environment variables expanded
           cat > docker-compose.yml << EOF
           version: '3.8'
-          
+
           services:
             rabbitmq:
               image: rabbitmq:3-management
@@ -132,7 +136,7 @@ jobs:
                 interval: 10s
                 timeout: 5s
                 retries: 5
-          
+
             auth:
               image: ${DOCKERHUB_USERNAME}/cashvio-auth:${GITHUB_SHA}
               ports:
@@ -143,7 +147,7 @@ jobs:
                 - REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}
                 - FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}
                 - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                - RABBIT_MQ_MAILER_QUEUE=mailer
+                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
                 - RABBIT_MQ_AUTH_QUEUE=auth
                 - JWT_EXPIRES_IN=24h
                 - REFRESH_JWT_EXPIRES_IN=7d
@@ -158,20 +162,26 @@ jobs:
               depends_on:
                 rabbitmq:
                   condition: service_healthy
-          
-            mailer:
-              image: ${DOCKERHUB_USERNAME}/cashvio-mailer:${GITHUB_SHA}
+
+            mailer-uploader:
+              image: ${DOCKERHUB_USERNAME}/cashvio-mailer-uploader:${GITHUB_SHA}
+              ports:
+                - "3001:3001"
               environment:
                 - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                - RABBIT_MQ_MAILER_QUEUE=mailer
+                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
                 - MAILER_EMAIL=${MAILER_EMAIL}
                 - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
                 - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
                 - OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}
+                - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+                - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+                - AWS_S3_REGION=${AWS_S3_REGION}
+                - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
               depends_on:
                 rabbitmq:
                   condition: service_healthy
-          
+
             stock:
               image: ${DOCKERHUB_USERNAME}/cashvio-stock:${GITHUB_SHA}
               ports:
@@ -185,13 +195,13 @@ jobs:
               depends_on:
                 rabbitmq:
                   condition: service_healthy
-          
+
           volumes:
             rabbitmq_data:
           EOF
-          
+
           # Skip validation - no need for docker-compose command
-      
+
       - name: Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -204,10 +214,10 @@ jobs:
             ServerAliveCountMax 10
           " > ~/.ssh/config
           chmod 600 ~/.ssh/config
-          
+
           # Transfer docker-compose file to EC2
           scp -o StrictHostKeyChecking=no docker-compose.yml $EC2_USER@$EC2_HOST:~/cashvio-backend/
-          
+
           # Execute deployment commands on EC2
           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
             # Set error handling
