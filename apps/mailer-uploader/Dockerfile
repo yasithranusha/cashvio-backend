@@ -36,7 +36,7 @@ RUN yarn install --production && \
     yarn prisma generate  # Add prisma generate here too
 
 # Copy built application from build stage
-COPY --from=build /usr/src/app/dist/apps/mailer ./dist
+COPY --from=build /usr/src/app/dist/apps/mailer-uploader ./dist
 
 # Command to run the application
 CMD ["node", "dist/main.js"]
