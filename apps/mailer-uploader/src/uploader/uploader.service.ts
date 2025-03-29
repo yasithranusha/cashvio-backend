@@ -70,8 +70,6 @@ export class UploaderService {
           ContentType: file.mimetype,
         }),
       );
-
-      // Return the full S3 URL instead of just the key
       const fileUrl = `${key}`;
       this.logger.log(`File uploaded successfully: ${fileUrl}`);
       return fileUrl;

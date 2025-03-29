@@ -111,6 +111,10 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
         run: |
           # Create docker-compose.yml file with environment variables expanded
           cat > docker-compose.yml << EOF
@@ -161,6 +165,8 @@ jobs:
 
             mailer-uploader:
               image: ${DOCKERHUB_USERNAME}/cashvio-mailer-uploader:${GITHUB_SHA}
+              ports:
+                - "3001:3001"
               environment:
                 - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
                 - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
@@ -168,6 +174,10 @@ jobs:
                 - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
                 - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
                 - OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}
+                - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+                - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+                - AWS_S3_REGION=${AWS_S3_REGION}
+                - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
               depends_on:
                 rabbitmq:
                   condition: service_healthy
