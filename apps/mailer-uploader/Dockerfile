@@ -14,11 +14,11 @@ FROM base AS development
 RUN yarn install
 COPY . .
 RUN yarn prisma generate  
-CMD ["yarn", "start:dev", "mailer"]
+CMD ["yarn", "start:dev", "mailer-uploader"]
 
 # Build stage
 FROM development AS build
-RUN yarn build mailer
+RUN yarn build mailer-uploader
 
 # Production stage
 FROM node:22-alpine AS production

@@ -17,17 +17,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  mailer:
+  mailer-uploader:
     build:
       context: .
-      dockerfile: ./apps/mailer/Dockerfile
+      dockerfile: ./apps/mailer-uploader/Dockerfile
       target: development
-    command: yarn start:dev mailer
+    command: yarn start:dev mailer-uploader
     env_file:
-      - ./apps/mailer/.env
+      - ./apps/mailer-uploader/.env
     depends_on:
       rabbitmq:
         condition: service_healthy
+    ports:
+      - 3001:3001
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
