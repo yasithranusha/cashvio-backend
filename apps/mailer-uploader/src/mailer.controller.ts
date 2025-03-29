@@ -3,26 +3,23 @@ import { MailerService } from './mailer.service';
 import {
   Ctx,
   EventPattern,
+  MessagePattern,
   Payload,
   RmqContext,
   RpcException,
 } from '@nestjs/microservices';
 import { RmqService } from '@app/common';
 import { SendMailDto } from './dto/sendmail.dto';
+import { UploaderService } from './uploader/uploader.service';
 
 @Controller()
 export class MailerController {
   private readonly logger = new Logger(MailerController.name);
   constructor(
     private readonly mailerService: MailerService,
+    private readonly uploaderService: UploaderService,
     private readonly rmqService: RmqService,
   ) {}
-
-  // @EventPattern('shop_created')
-  // async handleShopCreated(@Payload() data: any, @Ctx() context: RmqContext) {
-  //   await this.mailerService.sendShopCreatedEmail(data.shop);
-  //   this.rmqService.ack(context);
-  // }
 
   @EventPattern('send_email')
   async handleSendEmail(
@@ -34,7 +31,22 @@ export class MailerController {
       this.rmqService.ack(context);
     } catch (error) {
       this.logger.error('Failed to send email:', error);
-      // The message is acknowledged even on error
+      this.rmqService.ack(context);
+      throw new RpcException(error.message);
+    }
+  }
+
+  @MessagePattern('upload_file_url')
+  async handleS3UploadFromUrl(
+    @Payload() data: { url: string; folder: string; subFolder?: string },
+    @Ctx() context: RmqContext,
+  ) {
+    try {
+      // Implementation for uploading from URL
+      // This would require downloading the file first then uploading
+      this.rmqService.ack(context);
+    } catch (error) {
+      this.logger.error('Failed to upload from URL:', error);
       this.rmqService.ack(context);
       throw new RpcException(error.message);
     }

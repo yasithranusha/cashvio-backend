@@ -4,6 +4,7 @@ import { MailerService } from './mailer.service';
 import { RmqModule } from '@app/common';
 import * as Joi from 'joi';
 import { ConfigModule } from '@nestjs/config';
+import { UploaderModule } from './uploader/uploader.module';
 
 @Module({
   imports: [
@@ -16,10 +17,16 @@ import { ConfigModule } from '@nestjs/config';
         OAUTH_CLIENT_ID: Joi.string().required(),
         OAUTH_CLIENT_SECRET: Joi.string().required(),
         OAUTH_REFRESH_TOKEN: Joi.string().required(),
+        // AWS S3 Configuration
+        AWS_ACCESS_KEY: Joi.string().required(),
+        AWS_SECRET_KEY: Joi.string().required(),
+        AWS_S3_REGION: Joi.string().required(),
+        AWS_BUCKET_NAME: Joi.string().required(),
       }),
       envFilePath: ['.env'],
     }),
     RmqModule,
+    UploaderModule,
   ],
   controllers: [MailerController],
   providers: [MailerService],

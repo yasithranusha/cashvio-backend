@@ -7,22 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-auth:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push auth service
         uses: docker/build-push-action@v5
         with:
@@ -31,16 +31,48 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-auth:${{ github.sha }}
           target: production
-      
-      - name: Build and push mailer service
+
+  build-mailer-uploader:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push mailer-uploader service
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./apps/mailer/Dockerfile
+          file: ./apps/mailer-uploader/Dockerfile
           push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer:${{ github.sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer-uploader:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-mailer-uploader:${{ github.sha }}
           target: production
-      
+
+  build-stock:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build and push stock service
         uses: docker/build-push-action@v5
         with:
@@ -49,24 +81,131 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:latest,${{ vars.DOCKERHUB_USERNAME }}/cashvio-stock:${{ github.sha }}
           target: production
-  
+
   deploy:
-    needs: build
+    needs: [build-auth, build-mailer-uploader, build-stock]
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-      
+
+      - name: Create Docker Compose File
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          GITHUB_SHA: ${{ github.sha }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REFRESH_JWT_SECRET: ${{ secrets.REFRESH_JWT_SECRET }}
+          FORGET_PASSWORD_SECRET: ${{ secrets.FORGET_PASSWORD_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CALLBACK_URL: ${{ secrets.GOOGLE_CALLBACK_URL }}
+          CUSTOMER_CLIENT_URL: ${{ secrets.CUSTOMER_CLIENT_URL }}
+          ADMIN_CLIENT_URL: ${{ secrets.ADMIN_CLIENT_URL }}
+          SHOP_CLIENT_URL: ${{ secrets.SHOP_CLIENT_URL }}
+          MAILER_EMAIL: ${{ secrets.MAILER_EMAIL }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+        run: |
+          # Create docker-compose.yml file with environment variables expanded
+          cat > docker-compose.yml << EOF
+          version: '3.8'
+
+          services:
+            rabbitmq:
+              image: rabbitmq:3-management
+              ports:
+                - "5672:5672"
+                - "15672:15672"
+              environment:
+                - RABBITMQ_DEFAULT_USER=guest
+                - RABBITMQ_DEFAULT_PASS=guest
+              volumes:
+                - rabbitmq_data:/var/lib/rabbitmq
+              healthcheck:
+                test: ["CMD", "rabbitmqctl", "status"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+
+            auth:
+              image: ${DOCKERHUB_USERNAME}/cashvio-auth:${GITHUB_SHA}
+              ports:
+                - "3000:3000"
+              environment:
+                - DATABASE_URL=${DATABASE_URL}
+                - JWT_SECRET=${JWT_SECRET}
+                - REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}
+                - FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}
+                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
+                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
+                - RABBIT_MQ_AUTH_QUEUE=auth
+                - JWT_EXPIRES_IN=24h
+                - REFRESH_JWT_EXPIRES_IN=7d
+                - REFRESH_JWT_EXTENDED_EXPIRES_IN=30d
+                - FORGET_PASSWORD_EXPIRES_IN=2h
+                - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+                - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+                - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+                - CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}
+                - ADMIN_CLIENT_URL=${ADMIN_CLIENT_URL}
+                - SHOP_CLIENT_URL=${SHOP_CLIENT_URL}
+              depends_on:
+                rabbitmq:
+                  condition: service_healthy
+
+            mailer-uploader:
+              image: ${DOCKERHUB_USERNAME}/cashvio-mailer-uploader:${GITHUB_SHA}
+              ports:
+                - "3001:3001"
+              environment:
+                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
+                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
+                - MAILER_EMAIL=${MAILER_EMAIL}
+                - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+                - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+                - OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}
+                - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+                - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+                - AWS_S3_REGION=${AWS_S3_REGION}
+                - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+              depends_on:
+                rabbitmq:
+                  condition: service_healthy
+
+            stock:
+              image: ${DOCKERHUB_USERNAME}/cashvio-stock:${GITHUB_SHA}
+              ports:
+                - "3002:3002"
+              environment:
+                - DATABASE_URL=${DATABASE_URL}
+                - JWT_SECRET=${JWT_SECRET}
+                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
+                - RABBIT_MQ_STOCK_QUEUE=stock
+                - JWT_EXPIRES_IN=24h
+              depends_on:
+                rabbitmq:
+                  condition: service_healthy
+
+          volumes:
+            rabbitmq_data:
+          EOF
+
+          # Skip validation - no need for docker-compose command
+
       - name: Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ubuntu
-          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
-          GITHUB_SHA: ${{ github.sha }}
         run: |
           # Create SSH config to keep connection alive
           mkdir -p ~/.ssh
@@ -75,127 +214,31 @@ jobs:
             ServerAliveCountMax 10
           " > ~/.ssh/config
           chmod 600 ~/.ssh/config
-          
-          # Create environment variables file to transfer to EC2
-          cat << EOF > env_vars.sh
-          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
-          export JWT_SECRET="${{ secrets.JWT_SECRET }}"
-          export REFRESH_JWT_SECRET="${{ secrets.REFRESH_JWT_SECRET }}"
-          export FORGET_PASSWORD_SECRET="${{ secrets.FORGET_PASSWORD_SECRET }}"
-          export MAILER_EMAIL="${{ secrets.MAILER_EMAIL }}"
-          export OAUTH_CLIENT_ID="${{ secrets.OAUTH_CLIENT_ID }}"
-          export OAUTH_CLIENT_SECRET="${{ secrets.OAUTH_CLIENT_SECRET }}"
-          export OAUTH_REFRESH_TOKEN="${{ secrets.OAUTH_REFRESH_TOKEN }}"
-          export GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
-          export GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
-          export GOOGLE_CALLBACK_URL="${{ secrets.GOOGLE_CALLBACK_URL }}"
-          export CUSTOMER_CLIENT_URL="${{ secrets.CUSTOMER_CLIENT_URL }}"
-          export ADMIN_CLIENT_URL="${{ secrets.ADMIN_CLIENT_URL }}"
-          export SHOP_CLIENT_URL="${{ secrets.SHOP_CLIENT_URL }}"
-          export DOCKERHUB_USERNAME="${{ vars.DOCKERHUB_USERNAME }}"
-          export GITHUB_SHA="${{ github.sha }}"
-          EOF
-          
-          # Transfer environment file to EC2
-          scp -o StrictHostKeyChecking=no env_vars.sh $EC2_USER@$EC2_HOST:~/cashvio-backend/
-          
-          # Execute commands on EC2
-          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'ENDSSH'
+
+          # Transfer docker-compose file to EC2
+          scp -o StrictHostKeyChecking=no docker-compose.yml $EC2_USER@$EC2_HOST:~/cashvio-backend/
+
+          # Execute deployment commands on EC2
+          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            # Set error handling
+            set -e
+            
             # Create project directory if it doesn't exist
             mkdir -p ~/cashvio-backend
             cd ~/cashvio-backend
-            
-            # Source environment variables
-            source env_vars.sh
-            
-            # Create docker-compose.yml
-            cat > docker-compose.yml << EOF
-            version: '3.8'
-            
-            services:
-              rabbitmq:
-                image: rabbitmq:3-management
-                ports:
-                  - "5672:5672"
-                  - "15672:15672"
-                environment:
-                  - RABBITMQ_DEFAULT_USER=guest
-                  - RABBITMQ_DEFAULT_PASS=guest
-                volumes:
-                  - rabbitmq_data:/var/lib/rabbitmq
-                healthcheck:
-                  test: ["CMD", "rabbitmqctl", "status"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 5
-            
-              auth:
-                image: ${DOCKERHUB_USERNAME}/cashvio-auth:${GITHUB_SHA}
-                ports:
-                  - "3000:3000"
-                environment:
-                  - DATABASE_URL=${DATABASE_URL}
-                  - JWT_SECRET=${JWT_SECRET}
-                  - REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}
-                  - FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}
-                  - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                  - RABBIT_MQ_MAILER_QUEUE=mailer
-                  - RABBIT_MQ_AUTH_QUEUE=auth
-                  - JWT_EXPIRES_IN=24h
-                  - REFRESH_JWT_EXPIRES_IN=7d
-                  - REFRESH_JWT_EXTENDED_EXPIRES_IN=30d
-                  - FORGET_PASSWORD_EXPIRES_IN=2h
-                  - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-                  - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-                  - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
-                  - CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}
-                  - ADMIN_CLIENT_URL=${ADMIN_CLIENT_URL}
-                  - SHOP_CLIENT_URL=${SHOP_CLIENT_URL}
-                depends_on:
-                  rabbitmq:
-                    condition: service_healthy
-            
-              mailer:
-                image: ${DOCKERHUB_USERNAME}/cashvio-mailer:${GITHUB_SHA}
-                environment:
-                  - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                  - RABBIT_MQ_MAILER_QUEUE=mailer
-                  - MAILER_EMAIL=${MAILER_EMAIL}
-                  - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
-                  - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
-                  - OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}
-                depends_on:
-                  rabbitmq:
-                    condition: service_healthy
-            
-              stock:
-                image: ${DOCKERHUB_USERNAME}/cashvio-stock:${GITHUB_SHA}
-                ports:
-                  - "3002:3002"
-                environment:
-                  - DATABASE_URL=${DATABASE_URL}
-                  - JWT_SECRET=${JWT_SECRET}
-                  - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                  - RABBIT_MQ_STOCK_QUEUE=stock
-                  - JWT_EXPIRES_IN=24h
-                depends_on:
-                  rabbitmq:
-                    condition: service_healthy
-
-            volumes:
-              rabbitmq_data:
-            EOF
             
             # Pull latest images and start containers
             sudo docker-compose pull
             sudo docker-compose up -d
             
             # Clean up old images to save disk space
-            sudo docker image prune -af
+            sudo docker system prune -af --volumes
             
-            # Remove environment variables file
-            rm env_vars.sh
-          ENDSSH
-          
-          # Remove local environment file
-          rm env_vars.sh
+            # Free up disk space
+            sudo apt-get clean
+            sudo apt-get autoremove -y
+            
+            # Show running containers
+            echo "Running containers:"
+            sudo docker ps
+          EOF

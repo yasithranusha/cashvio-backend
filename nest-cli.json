@@ -37,13 +37,13 @@
         "tsConfigPath": "libs/common/tsconfig.lib.json"
       }
     },
-    "mailer": {
+    "mailer-uploader": {
       "type": "application",
-      "root": "apps/mailer",
+      "root": "apps/mailer-uploader",
       "entryFile": "main",
-      "sourceRoot": "apps/mailer/src",
+      "sourceRoot": "apps/mailer-uploader/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/mailer/tsconfig.app.json"
+        "tsConfigPath": "apps/mailer-uploader/tsconfig.app.json"
       }
     }
   }
