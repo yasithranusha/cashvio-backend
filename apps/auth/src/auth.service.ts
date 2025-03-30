@@ -569,4 +569,30 @@ export class AuthService {
 
     return newUser;
   }
+
+  //todo: send a invitation email to user which give a link to set password
+  async createAdminUser(adminuser: {
+    email: string;
+    password: string;
+    name: string;
+  }): Promise<User> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: adminuser.email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(adminuser.password, salt);
+    const newUser = await this.prisma.user.create({
+      data: {
+        email: adminuser.email,
+        password: hashedPassword,
+        name: adminuser.name,
+        role: Role.SUPER_ADMIN,
+        status: Status.ACTIVE,
+      },
+    });
+    return newUser;
+  }
 }

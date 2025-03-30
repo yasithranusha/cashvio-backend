@@ -26,3 +26,15 @@ export class GenerateOtpDto {
   @MinLength(2)
   name: string;
 }
+
+export class AdminCreateDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @IsString()
+  name: string;
+}
