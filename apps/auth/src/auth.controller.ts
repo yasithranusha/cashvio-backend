@@ -14,7 +14,7 @@ import { Public } from './decorators/public.decorator';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { GenerateOtpDto } from './dto/auth.dto';
+import { AdminCreateDto, GenerateOtpDto } from './dto/auth.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
 import { ConfigService } from '@nestjs/config';
@@ -102,5 +102,11 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  @Public()
+  @Post('admin/create')
+  async createAdmin(@Body() dto: AdminCreateDto) {
+    return this.authService.createAdminUser(dto);
   }
 }

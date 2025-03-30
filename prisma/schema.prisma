@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,47 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Status {
-  ACTIVE // Operating normally
-  INACTIVE // Temporarily inactive
-  SUSPENDED // Suspended by admin
-}
-
-enum ProductStatus {
-  ACTIVE
-  HIDE
-}
-
-enum Role {
-  ADMIN
-  SHOP_OWNER
-  SHOP_STAFF
-  CUSTOMER
-}
-
 model User {
-  id            String    @id @default(uuid())
-  name          String
-  dob           DateTime?
-  profileImage  String?
-  contactNumber String?
-  status        Status    @default(ACTIVE)
-  email         String    @unique
-  password      String
-  role          Role      @default(SHOP_STAFF)
-
-  // many-to-many relation
-  shopAccess UserShop[]
-
-  // default shop relation
-  defaultShop   Shop?   @relation("DefaultShop", fields: [defaultShopId], references: [id])
-  defaultShopId String? @map("default_shop_id")
-
+  id              String     @id @default(uuid())
+  name            String
+  dob             DateTime?
+  profileImage    String?
+  status          Status     @default(ACTIVE)
+  email           String     @unique
+  password        String
+  role            Role       @default(SHOP_STAFF)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  contactNumber   String?
   refreshToken    String?
   refreshTokenExp DateTime?
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  defaultShopId   String?    @map("default_shop_id")
+  shopAccess      UserShop[]
+  defaultShop     Shop?      @relation("DefaultShop", fields: [defaultShopId], references: [id])
 
   @@index([email])
   @@index([defaultShopId])
@@ -60,40 +33,32 @@ model User {
 }
 
 model Shop {
-  id           String  @id @default(uuid())
-  businessName String  @map("business_name")
-  address      String
-  shopLogo     String? @map("shop_logo")
-  shopBanner   String? @map("shop_banner")
-  contactPhone String? @map("contact_phone")
-  status       Status  @default(ACTIVE)
-
-  // Replace direct users relation with many-to-many
-  users UserShop[]
-
-  // Add relation for users who have this as their default shop
-  defaultForUsers User[] @relation("DefaultShop")
-
-  products  Product[]
-  suppliers Supplier[]
-
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-  Category  Category[]
+  id              String     @id @default(uuid())
+  businessName    String     @map("business_name")
+  address         String
+  shopLogo        String?    @map("shop_logo")
+  shopBanner      String?    @map("shop_banner")
+  contactPhone    String?    @map("contact_phone")
+  status          Status     @default(ACTIVE)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  Category        Category[]
+  products        Product[]
+  suppliers       Supplier[]
+  users           UserShop[]
+  defaultForUsers User[]     @relation("DefaultShop")
 
   @@index([status])
   @@map("shops")
 }
 
-// New join table for many-to-many relationship
 model UserShop {
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String @map("user_id")
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  shopId String @map("shop_id")
-  role   Role   @default(SHOP_STAFF) // Store the user's role for this specific shop
-
+  userId    String   @map("user_id")
+  shopId    String   @map("shop_id")
+  role      Role     @default(SHOP_STAFF)
   createdAt DateTime @default(now()) @map("created_at")
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, shopId])
   @@index([userId])
@@ -105,45 +70,37 @@ model Supplier {
   id            String    @id @default(uuid())
   name          String
   contactNumber String    @map("contact_number")
-  shop          Shop      @relation(fields: [shopId], references: [id])
   shopId        String    @map("shop_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   products      Product[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  shop          Shop      @relation(fields: [shopId], references: [id])
 
   @@index([shopId])
   @@map("suppliers")
 }
 
 model Product {
-  id           String        @id @default(uuid())
-  name         String
-  description  String?
-  displayName  String?       @map("display_name")
-  keepingUnits Int           @map("keeping_units")
-  imageUrls    String[]      @map("image_urls")
-  status       ProductStatus @default(ACTIVE)
-
-  shop   Shop   @relation(fields: [shopId], references: [id])
-  shopId String @map("shop_id")
-
-  supplier   Supplier? @relation(fields: [supplierId], references: [id])
-  supplierId String?   @map("supplier_id")
-
-  category   Category? @relation(fields: [categoryId], references: [id])
-  categoryId String?   @map("category_id")
-
-  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id])
-  subCategoryId String?      @map("sub_category_id")
-
-  subSubCategory   SubSubCategory? @relation(fields: [subSubCategoryId], references: [id])
+  id               String          @id @default(uuid())
+  name             String
+  description      String?
+  shopId           String          @map("shop_id")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  displayName      String?         @map("display_name")
+  imageUrls        String[]        @map("image_urls")
+  keepingUnits     Int             @map("keeping_units")
+  supplierId       String?         @map("supplier_id")
+  categoryId       String?         @map("category_id")
+  subCategoryId    String?         @map("sub_category_id")
   subSubCategoryId String?         @map("sub_sub_category_id")
-
-  items Item[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  status           ProductStatus   @default(ACTIVE)
+  items            Item[]
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  shop             Shop            @relation(fields: [shopId], references: [id])
+  subCategory      SubCategory?    @relation(fields: [subCategoryId], references: [id])
+  subSubCategory   SubSubCategory? @relation(fields: [subSubCategoryId], references: [id])
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id])
 
   @@index([shopId])
   @@index([supplierId])
@@ -160,32 +117,27 @@ model Item {
   broughtPrice   Float     @map("brought_price")
   sellPrice      Float     @map("sell_price")
   warrantyPeriod DateTime? @map("warranty_period")
-
-  product   Product @relation(fields: [productId], references: [id])
-  productId String  @map("product_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  productId      String    @map("product_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  product        Product   @relation(fields: [productId], references: [id])
 
   @@index([productId])
   @@map("items")
 }
 
 model Category {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  imageUrl    String?       @map("image_url")
-  status      ProductStatus @default(ACTIVE)
-
-  shop   Shop   @relation(fields: [shopId], references: [id])
-  shopId String @map("shop_id")
-
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  imageUrl      String?       @map("image_url")
+  status        ProductStatus @default(ACTIVE)
+  shopId        String        @map("shop_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  shop          Shop          @relation(fields: [shopId], references: [id])
   products      Product[]
   subCategories SubCategory[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([shopId])
   @@index([status])
@@ -193,20 +145,17 @@ model Category {
 }
 
 model SubCategory {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  imageUrl    String?       @map("image_url")
-  status      ProductStatus @default(ACTIVE)
-
-  category   Category @relation(fields: [categoryId], references: [id])
-  categoryId String   @map("category_id")
-
+  id               String           @id @default(uuid())
+  name             String
+  description      String?
+  imageUrl         String?          @map("image_url")
+  status           ProductStatus    @default(ACTIVE)
+  categoryId       String           @map("category_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
   products         Product[]
+  category         Category         @relation(fields: [categoryId], references: [id])
   subSubCategories SubSubCategory[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([categoryId])
   @@index([status])
@@ -214,19 +163,16 @@ model SubCategory {
 }
 
 model SubSubCategory {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  imageUrl    String?       @map("image_url")
-  status      ProductStatus @default(ACTIVE)
-
-  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
-  subCategoryId String      @map("sub_category_id")
-
-  products Product[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  imageUrl      String?       @map("image_url")
+  status        ProductStatus @default(ACTIVE)
+  subCategoryId String        @map("sub_category_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  products      Product[]
+  subCategory   SubCategory   @relation(fields: [subCategoryId], references: [id])
 
   @@index([subCategoryId])
   @@index([status])
@@ -244,4 +190,23 @@ model Otp {
   @@index([email])
   @@index([expiresAt])
   @@map("otps")
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ProductStatus {
+  ACTIVE
+  HIDE
+}
+
+enum Role {
+  ADMIN
+  SHOP_OWNER
+  SHOP_STAFF
+  CUSTOMER
+  SUPER_ADMIN
 }
