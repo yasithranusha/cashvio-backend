@@ -1,36 +1,7 @@
-import {
-  IsString,
-  IsEmail,
-  IsOptional,
-  MinLength,
-  IsMobilePhone,
-  Length,
-} from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
+import { UserRegisterDto } from './user.dto';
 
-export class SellerRegisterDto {
-  // User details
-  @IsString()
-  name: string;
-
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @MinLength(6)
-  password: string;
-
-  @IsOptional()
-  dob?: Date;
-
-  @IsOptional()
-  @IsString()
-  profileImage?: string;
-
-  @IsOptional()
-  @IsMobilePhone()
-  contactNumber?: string;
-
-  // Shop details
+export class SellerRegisterDto extends UserRegisterDto {
   @IsString()
   businessName: string;
 
@@ -48,8 +19,4 @@ export class SellerRegisterDto {
   @IsOptional()
   @IsString()
   shopBanner?: string;
-
-  @IsString()
-  @Length(6, 6, { message: 'Invalid OTP' })
-  otp: string;
 }
