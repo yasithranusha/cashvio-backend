@@ -90,7 +90,7 @@ export class AuthController {
     const clientUrl = this.configService.get('CUSTOMER_CLIENT_URL');
 
     res.redirect(
-      `${clientUrl}/auth/callback?` +
+      `${clientUrl}/api/auth/callback?` +
         `accessToken=${tokens.accessToken}&` +
         `refreshToken=${tokens.refreshToken}&` +
         `userId=${tokens.user.id}&` +
