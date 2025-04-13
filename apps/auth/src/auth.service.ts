@@ -21,6 +21,7 @@ import { AuthResponse, JwtPayload, userSelectFeilds } from './types/user';
 import { PrismaService } from '@app/common/database/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { UserRegisterDto } from './dto/user.dto';
 
 export interface ShopWithUsers extends Shop {
   users: Array<Omit<User, 'password'>>;
@@ -442,6 +443,80 @@ export class AuthService {
           };
 
           return formattedResult as ShopWithUsers;
+        },
+        {
+          maxWait: 5000,
+          timeout: 10000,
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        },
+      );
+    } catch (error) {
+      this.logger.error('Error in createShopWithOwner:', error);
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Email already exists');
+      }
+      throw new InternalServerErrorException('Failed to create shop');
+    }
+  }
+
+  async cerateCustomer(data: UserRegisterDto) {
+    try {
+      const otpRecord = await this.prisma.otp.findUnique({
+        where: { email: data.email },
+      });
+
+      if (!otpRecord) {
+        throw new BadRequestException('Invalid OTP');
+      }
+
+      if (otpRecord.otp !== data.otp) {
+        throw new BadRequestException('Invalid OTP');
+      }
+
+      if (otpRecord.expiresAt < new Date()) {
+        throw new BadRequestException('OTP has expired');
+      }
+
+      await this.prisma.otp.delete({
+        where: { email: data.email },
+      });
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(data.password, salt);
+
+      return await this.prisma.$transaction(
+        async (tx) => {
+          await tx.user.create({
+            data: {
+              name: data.name,
+              email: data.email,
+              password: hashedPassword,
+              dob: data.dob,
+              contactNumber: data.contactNumber,
+              profileImage: data.profileImage,
+              role: Role.CUSTOMER,
+              refreshToken: null,
+              refreshTokenExp: null,
+            },
+          });
+
+          const result = await tx.user.findUnique({
+            where: { email: data.email },
+            select: {
+              ...userSelectFeilds,
+              refreshToken: true,
+              refreshTokenExp: true,
+            },
+          });
+
+          if (!result) {
+            throw new InternalServerErrorException('Failed to create shop');
+          }
+
+          return result;
         },
         {
           maxWait: 5000,

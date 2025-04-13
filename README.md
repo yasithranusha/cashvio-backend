@@ -28,6 +28,12 @@
 
 ## CASHVIO BACKEND
 
+## Prerequisites
+
+- Node.js (>= 12.0.0)
+- Yarn package manager
+- Docker and Docker Compose
+
 ## Installation
 
 ```bash
@@ -37,15 +43,26 @@ $ yarn install
 ## Running the app
 
 ```bash
-# development
-$ yarn run start
+# development environment
+$ docker-compose -f docker-compose-dev.yml up --build
 
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+# production environment
+$ docker-compose -f docker-compose-prod.yml up --build
 ```
+
+## Deployment
+
+This project is configured with GitHub Actions for automated CI/CD:
+
+- **Build and Deploy to Production**: Triggered on pushes to the `production` branch
+- **Services**: Builds and deploys three microservices:
+  - Auth service
+  - Mailer-Uploader service 
+  - Stock service
+- **Infrastructure**: Uses Docker containers orchestrated with Docker Compose
+- **Environment**: Deploys to EC2 via SSH
+
+For more details, check `.github/workflows/deploy.yml`.
 
 ## Test
 

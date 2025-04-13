@@ -19,6 +19,7 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
+import { UserRegisterDto } from './dto/user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -41,6 +42,12 @@ export class AuthController {
     @Body() shopRegisterData: SellerRegisterDto,
   ): Promise<ShopWithUsers> {
     return this.authService.createShopWithOwner(shopRegisterData);
+  }
+
+  @Public()
+  @Post('customer/register')
+  async customerRegister(@Body() shopRegisterData: UserRegisterDto) {
+    return this.authService.cerateCustomer(shopRegisterData);
   }
 
   @Public()
