@@ -95,6 +95,8 @@ export class AuthController {
         `refreshToken=${tokens.refreshToken}&` +
         `userId=${tokens.user.id}&` +
         `email=${tokens.user.email}&` +
+        `name=${tokens.user.name}&` +
+        `profileImage=${tokens.user.profileImage}&` +
         `role=${tokens.user.role}`,
     );
   }
