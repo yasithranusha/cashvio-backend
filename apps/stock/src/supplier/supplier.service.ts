@@ -53,14 +53,19 @@ export class SupplierService {
   ): Promise<PaginatedResponse<Supplier>> {
     this.logger.debug(`Getting suppliers for shop ${query.shopId}`);
 
-    const skip = (query.page - 1) * query.limit;
+    const hasPagination = query.page !== undefined && query.limit !== undefined;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
 
     try {
       const [suppliers, total] = await Promise.all([
         this.prisma.supplier.findMany({
           where: { shopId: query.shopId },
-          skip,
-          take: query.limit,
+          ...(hasPagination && {
+            skip,
+            take: limit,
+          }),
           orderBy: { createdAt: 'desc' },
         }),
         this.prisma.supplier.count({
@@ -72,9 +77,9 @@ export class SupplierService {
         data: suppliers,
         pagination: {
           total,
-          page: query.page,
-          limit: query.limit,
-          totalPages: Math.ceil(total / query.limit),
+          page: hasPagination ? page : 1,
+          limit: hasPagination ? limit : total,
+          totalPages: hasPagination ? Math.ceil(total / limit) : 1,
         },
       };
     } catch (error) {
