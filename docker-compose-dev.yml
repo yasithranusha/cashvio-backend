@@ -12,7 +12,7 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     ports:
-      - 3000:3000
+      - 8080:3000
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -29,7 +29,7 @@ services:
       rabbitmq:
         condition: service_healthy
     ports:
-      - 3001:3001
+      - 8081:3001
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -47,7 +47,7 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     ports:
-      - 3002:3002
+      - 8082:3002
     depends_on:
       rabbitmq:
         condition: service_healthy
