@@ -224,8 +224,8 @@ export class AuthService {
         {
           secret: this.configService.get('REFRESH_JWT_SECRET'),
           expiresIn: rememberMe
-            ? this.configService.get('REFRESH_JWT_EXTENDED_EXPIRES_IN') // e.g., '30d'
-            : this.configService.get('REFRESH_JWT_EXPIRES_IN'), // e.g., '7d'
+            ? this.configService.get('REFRESH_JWT_EXTENDED_EXPIRES_IN')
+            : this.configService.get('REFRESH_JWT_EXPIRES_IN'),
         },
       ),
     ]);
@@ -247,6 +247,31 @@ export class AuthService {
       },
     });
 
+    // Fetch user with their shops
+    const userWithShops = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        ...userSelectFeilds,
+        defaultShop: true,
+        shopAccess: {
+          include: {
+            shop: true,
+          },
+        },
+      },
+    });
+
+    // Format shops for the response
+    const shops = userWithShops.shopAccess.map((access) => ({
+      id: access.shop.id,
+      businessName: access.shop.businessName,
+      address: access.shop.address,
+      contactPhone: access.shop.contactPhone,
+      shopLogo: access.shop.shopLogo || '',
+      shopBanner: access.shop.shopBanner || '',
+      role: access.role,
+    }));
+
     return {
       accessToken,
       refreshToken,
@@ -256,6 +281,9 @@ export class AuthService {
         email: user.email,
         role: user.role,
         profileImage: user.profileImage || '',
+        defaultShopId: user.defaultShopId || null,
+        defaultShop: userWithShops.defaultShop,
+        shops: shops,
       },
     };
   }
