@@ -19,6 +19,7 @@ export class CreateSupplierDto {
   @IsEmail()
   email: string;
 
+  @IsOptional()
   @IsBoolean()
   haveWhatsApp: boolean;
 
