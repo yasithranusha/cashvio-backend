@@ -33,11 +33,7 @@ export class SupplierService {
       }
 
       return await this.prisma.supplier.create({
-        data: {
-          name: dto.name,
-          contactNumber: dto.contactNumber,
-          shopId: dto.shopId,
-        },
+        data: dto,
       });
     } catch (error) {
       this.logger.error(
@@ -122,6 +118,8 @@ export class SupplierService {
         data: {
           name: dto.name,
           contactNumber: dto.contactNumber,
+          email: dto.email,
+          haveWhatsApp: dto.haveWhatsApp,
         },
       });
 
