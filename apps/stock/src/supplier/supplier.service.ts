@@ -36,6 +36,8 @@ export class SupplierService {
         data: {
           name: dto.name,
           contactNumber: dto.contactNumber,
+          email: dto.email,
+          haveWhatsApp: dto.haveWhatsApp,
           shopId: dto.shopId,
         },
       });
@@ -122,6 +124,8 @@ export class SupplierService {
         data: {
           name: dto.name,
           contactNumber: dto.contactNumber,
+          email: dto.email,
+          haveWhatsApp: dto.haveWhatsApp,
         },
       });
 
