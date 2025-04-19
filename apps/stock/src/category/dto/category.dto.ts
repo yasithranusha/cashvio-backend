@@ -12,7 +12,4 @@ export class CreateCategoryDto extends BaseCategoryCreateDto {
 
 export class UpdateCategoryDto extends BaseCategoryUpdateDto {}
 
-export class GetCategoriesDto extends BaseCategoryGetDto {
-  @IsString()
-  shopId: string;
-}
+export class GetCategoriesDto extends BaseCategoryGetDto {}

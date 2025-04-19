@@ -1,4 +1,4 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import {
   BaseCategoryCreateDto,
   BaseCategoryUpdateDto,
@@ -10,9 +10,17 @@ export class CreateSubCategoryDto extends BaseCategoryCreateDto {
   categoryId: string;
 }
 
-export class UpdateSubCategoryDto extends BaseCategoryUpdateDto {}
-
-export class GetSubCategoriesDto extends BaseCategoryGetDto {
+export class UpdateSubCategoryDto extends BaseCategoryUpdateDto {
+  @IsOptional()
   @IsString()
-  categoryId: string;
+  categoryId?: string;
+}
+
+export class GetShopSubCategoriesDto extends BaseCategoryGetDto {
+  @IsString()
+  shopId: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }
