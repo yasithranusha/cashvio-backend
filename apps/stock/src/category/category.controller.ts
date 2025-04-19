@@ -20,16 +20,17 @@ import {
 } from './dto/category.dto';
 import {
   CreateSubCategoryDto,
-  GetSubCategoriesDto,
+  GetShopSubCategoriesDto,
   UpdateSubCategoryDto,
 } from './dto/subcategory.dto';
 import {
   CreateSubSubCategoryDto,
-  GetSubSubCategoriesDto,
+  GetShopSubSubCategoriesDto,
   UpdateSubSubCategoryDto,
 } from './dto/subsubcategory.dto';
 import { Roles } from '@app/common/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { Public } from '@app/common';
 
 @Controller('categories')
 export class CategoryController {
@@ -70,31 +71,15 @@ export class CategoryController {
     });
   }
 
-  @Get()
-  @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
-  async getCategories(@Query() query: GetCategoriesDto, @Req() req) {
-    this.logger.debug('GET /categories', query);
+  @Get(':shopId')
+  @Public()
+  async getCategories(
+    @Param('shopId') shopId: string,
+    @Query() query: GetCategoriesDto,
+  ) {
+    this.logger.debug(`GET /categories/${shopId}`, query);
 
-    // Get shop ID from query or default shop
-    const shopId = query.shopId || req.user.defaultShopId;
-
-    if (!shopId) {
-      throw new BadRequestException('Shop ID is required');
-    }
-
-    // Verify user has access to this shop
-    if (req.user.role !== Role.ADMIN) {
-      const hasAccess = await this.categoryService.verifyUserShopAccess(
-        req.user.id,
-        shopId,
-      );
-
-      if (!hasAccess) {
-        throw new ForbiddenException('You do not have access to this shop');
-      }
-    }
-
-    return this.categoryService.getCategories(query);
+    return this.categoryService.getCategories(query, shopId);
   }
 
   @Get(':id')
@@ -178,20 +163,18 @@ export class CategoryController {
   }
 
   // SubCategory endpoints
-  @Post(':categoryId/subcategories')
+  @Post('subcategories')
   @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
   async createSubCategory(
-    @Param('categoryId') categoryId: string,
     @Body() createSubCategoryDto: CreateSubCategoryDto,
     @Req() req,
   ) {
-    this.logger.debug(
-      `POST /categories/${categoryId}/subcategories`,
-      createSubCategoryDto,
-    );
+    this.logger.debug(`POST /categories/subcategories`, createSubCategoryDto);
 
     // Get shop ID from category
-    const shopId = await this.categoryService.getCategoryShopId(categoryId);
+    const shopId = await this.categoryService.getCategoryShopId(
+      createSubCategoryDto.categoryId,
+    );
 
     // Verify user has access to this shop
     if (req.user.role !== Role.ADMIN) {
@@ -207,37 +190,20 @@ export class CategoryController {
 
     return this.categoryService.createSubCategory({
       ...createSubCategoryDto,
-      categoryId,
     });
   }
 
-  @Get(':categoryId/subcategories')
-  @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
-  async getSubCategories(
-    @Param('categoryId') categoryId: string,
-    @Query() query: GetSubCategoriesDto,
-    @Req() req,
+  @Get('subcategories/:shopId')
+  @Public()
+  async getShopSubCategories(
+    @Param('shopId') shopId: string,
+    @Query() query: Omit<GetShopSubCategoriesDto, 'shopId'>,
   ) {
-    this.logger.debug(`GET /categories/${categoryId}/subcategories`, query);
+    this.logger.debug(`GET /categories/subcategories/${shopId}`, query);
 
-    // Get shop ID from category
-    const shopId = await this.categoryService.getCategoryShopId(categoryId);
-
-    // Verify user has access to this shop
-    if (req.user.role !== Role.ADMIN) {
-      const hasAccess = await this.categoryService.verifyUserShopAccess(
-        req.user.id,
-        shopId,
-      );
-
-      if (!hasAccess) {
-        throw new ForbiddenException('You do not have access to this category');
-      }
-    }
-
-    return this.categoryService.getSubCategories({
+    return this.categoryService.getShopSubCategories({
       ...query,
-      categoryId,
+      shopId,
     });
   }
 
@@ -338,21 +304,21 @@ export class CategoryController {
   }
 
   // SubSubCategory endpoints
-  @Post('subcategories/:subCategoryId/subsubcategories')
+  @Post('subcategories/subsubcategories')
   @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
   async createSubSubCategory(
-    @Param('subCategoryId') subCategoryId: string,
     @Body() createSubSubCategoryDto: CreateSubSubCategoryDto,
     @Req() req,
   ) {
     this.logger.debug(
-      `POST /categories/subcategories/${subCategoryId}/subsubcategories`,
+      `POST /categories/subcategories/subsubcategories`,
       createSubSubCategoryDto,
     );
 
     // Get shop ID from subcategory's parent category
-    const shopId =
-      await this.categoryService.getSubCategoryShopId(subCategoryId);
+    const shopId = await this.categoryService.getSubCategoryShopId(
+      createSubSubCategoryDto.subCategoryId,
+    );
 
     // Verify user has access to this shop
     if (req.user.role !== Role.ADMIN) {
@@ -370,43 +336,20 @@ export class CategoryController {
 
     return this.categoryService.createSubSubCategory({
       ...createSubSubCategoryDto,
-      subCategoryId,
     });
   }
 
-  @Get('subcategories/:subCategoryId/subsubcategories')
-  @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
-  async getSubSubCategories(
-    @Param('subCategoryId') subCategoryId: string,
-    @Query() query: GetSubSubCategoriesDto,
-    @Req() req,
+  @Get('subsubcategories/:shopId')
+  @Public()
+  async getShopSubSubCategories(
+    @Param('shopId') shopId: string,
+    @Query() query: Omit<GetShopSubSubCategoriesDto, 'shopId'>,
   ) {
-    this.logger.debug(
-      `GET /categories/subcategories/${subCategoryId}/subsubcategories`,
-      query,
-    );
+    this.logger.debug(`GET /categories/subsubcategories/${shopId}`, query);
 
-    // Get shop ID from subcategory's parent category
-    const shopId =
-      await this.categoryService.getSubCategoryShopId(subCategoryId);
-
-    // Verify user has access to this shop
-    if (req.user.role !== Role.ADMIN) {
-      const hasAccess = await this.categoryService.verifyUserShopAccess(
-        req.user.id,
-        shopId,
-      );
-
-      if (!hasAccess) {
-        throw new ForbiddenException(
-          'You do not have access to this subcategory',
-        );
-      }
-    }
-
-    return this.categoryService.getSubSubCategories({
+    return this.categoryService.getShopSubSubCategories({
       ...query,
-      subCategoryId,
+      shopId,
     });
   }
 

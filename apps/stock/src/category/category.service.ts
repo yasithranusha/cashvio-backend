@@ -12,12 +12,12 @@ import {
 } from './dto/category.dto';
 import {
   CreateSubCategoryDto,
-  GetSubCategoriesDto,
+  GetShopSubCategoriesDto,
   UpdateSubCategoryDto,
 } from './dto/subcategory.dto';
 import {
   CreateSubSubCategoryDto,
-  GetSubSubCategoriesDto,
+  GetShopSubSubCategoriesDto,
   UpdateSubSubCategoryDto,
 } from './dto/subsubcategory.dto';
 import {
@@ -74,20 +74,31 @@ export class CategoryService {
 
   async getCategories(
     query: GetCategoriesDto,
+    shopid: string,
   ): Promise<PaginatedResponse<Category>> {
-    this.logger.debug(`Getting categories for shop ${query.shopId}`);
+    this.logger.debug(`Getting categories for shop ${shopid}`);
 
-    const skip = (query.page - 1) * query.limit;
-
-    const where: any = { shopId: query.shopId };
+    const where: any = { shopId: shopid };
     if (query.status) where.status = query.status;
 
     try {
+      let paginationOptions = {};
+      let page = 1;
+      let limit = 10;
+
+      if (query.page && query.limit) {
+        page = query.page;
+        limit = query.limit;
+        paginationOptions = {
+          skip: (page - 1) * limit,
+          take: limit,
+        };
+      }
+
       const [categories, total] = await Promise.all([
         this.prisma.category.findMany({
           where,
-          skip,
-          take: query.limit,
+          ...paginationOptions,
           orderBy: { name: 'asc' },
           include: {
             _count: {
@@ -105,9 +116,9 @@ export class CategoryService {
         data: categories,
         pagination: {
           total,
-          page: query.page,
-          limit: query.limit,
-          totalPages: Math.ceil(total / query.limit),
+          page,
+          limit,
+          totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
         },
       };
     } catch (error) {
@@ -262,24 +273,49 @@ export class CategoryService {
     }
   }
 
-  async getSubCategories(
-    query: GetSubCategoriesDto,
+  async getShopSubCategories(
+    query: GetShopSubCategoriesDto,
   ): Promise<PaginatedResponse<SubCategory>> {
-    this.logger.debug(`Getting subcategories for category ${query.categoryId}`);
+    this.logger.debug(`Getting subcategories for shop ${query.shopId}`);
 
-    const skip = (query.page - 1) * query.limit;
+    // Create base where condition with shopId (joined through category)
+    const where: any = {
+      category: {
+        shopId: query.shopId,
+      },
+    };
 
-    const where: any = { categoryId: query.categoryId };
-    if (query.status) where.status = query.status;
+    // Add optional filters
+    if (query.categoryId) {
+      where.categoryId = query.categoryId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
 
     try {
+      let skip = 0;
+      const page = query.page || 1;
+      const limit = query.limit || 10;
+      let take = undefined;
+
+      // Only apply pagination if both page and limit are provided
+      if (query.page && query.limit) {
+        skip = (page - 1) * limit;
+        take = limit;
+      }
+
       const [subCategories, total] = await Promise.all([
         this.prisma.subCategory.findMany({
           where,
           skip,
-          take: query.limit,
+          take,
           orderBy: { name: 'asc' },
           include: {
+            category: {
+              select: { id: true, name: true },
+            },
             _count: {
               select: {
                 products: true,
@@ -295,14 +331,14 @@ export class CategoryService {
         data: subCategories,
         pagination: {
           total,
-          page: query.page,
-          limit: query.limit,
-          totalPages: Math.ceil(total / query.limit),
+          page,
+          limit,
+          totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
         },
       };
     } catch (error) {
       this.logger.error(
-        `Error getting subcategories: ${error.message}`,
+        `Error getting shop subcategories: ${error.message}`,
         error.stack,
       );
       throw error;
@@ -355,6 +391,30 @@ export class CategoryService {
 
       if (!subCategory) {
         throw new NotFoundException('Subcategory not found');
+      }
+
+      if (
+        updateSubCategoryDto.categoryId &&
+        updateSubCategoryDto.categoryId !== subCategory.categoryId
+      ) {
+        const newCategory = await this.prisma.category.findUnique({
+          where: { id: updateSubCategoryDto.categoryId },
+        });
+
+        if (!newCategory) {
+          throw new BadRequestException('New parent category not found');
+        }
+
+        const oldCategory = await this.prisma.category.findUnique({
+          where: { id: subCategory.categoryId },
+          select: { shopId: true },
+        });
+
+        if (oldCategory && oldCategory.shopId !== newCategory.shopId) {
+          throw new BadRequestException(
+            'Cannot move subcategory to a different shop',
+          );
+        }
       }
 
       const updatedSubCategory = await this.prisma.subCategory.update({
@@ -451,28 +511,61 @@ export class CategoryService {
     }
   }
 
-  async getSubSubCategories(
-    query: GetSubSubCategoriesDto,
+  async getShopSubSubCategories(
+    query: GetShopSubSubCategoriesDto,
   ): Promise<PaginatedResponse<SubSubCategory>> {
-    this.logger.debug(
-      `Getting sub-subcategories for subcategory ${query.subCategoryId}`,
-    );
+    this.logger.debug(`Getting sub-subcategories for shop ${query.shopId}`);
 
-    const skip = (query.page - 1) * query.limit;
+    // Create base where condition with shopId (joined through category->subcategory)
+    const where: any = {
+      subCategory: {
+        category: {
+          shopId: query.shopId,
+        },
+      },
+    };
 
-    const where: any = { subCategoryId: query.subCategoryId };
-    if (query.status) where.status = query.status;
+    // Add optional filters
+    if (query.subCategoryId) {
+      where.subCategoryId = query.subCategoryId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
 
     try {
+      let skip = 0;
+      const page = query.page || 1;
+      const limit = query.limit || 10;
+      let take = undefined;
+
+      // Only apply pagination if both page and limit are provided
+      if (query.page && query.limit) {
+        skip = (page - 1) * limit;
+        take = limit;
+      }
+
       const [subSubCategories, total] = await Promise.all([
         this.prisma.subSubCategory.findMany({
           where,
           skip,
-          take: query.limit,
+          take,
           orderBy: { name: 'asc' },
           include: {
+            subCategory: {
+              select: {
+                id: true,
+                name: true,
+                category: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
             _count: {
-              select: { products: true },
+              select: {
+                products: true,
+              },
             },
           },
         }),
@@ -483,14 +576,14 @@ export class CategoryService {
         data: subSubCategories,
         pagination: {
           total,
-          page: query.page,
-          limit: query.limit,
-          totalPages: Math.ceil(total / query.limit),
+          page,
+          limit,
+          totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
         },
       };
     } catch (error) {
       this.logger.error(
-        `Error getting sub-subcategories: ${error.message}`,
+        `Error getting shop sub-subcategories: ${error.message}`,
         error.stack,
       );
       throw error;
@@ -544,6 +637,37 @@ export class CategoryService {
 
       if (!subSubCategory) {
         throw new NotFoundException('Sub-subcategory not found');
+      }
+
+      if (
+        updateSubSubCategoryDto.subCategoryId &&
+        updateSubSubCategoryDto.subCategoryId !== subSubCategory.subCategoryId
+      ) {
+        const newSubCategory = await this.prisma.subCategory.findUnique({
+          where: { id: updateSubSubCategoryDto.subCategoryId },
+          include: {
+            category: { select: { shopId: true } },
+          },
+        });
+
+        if (!newSubCategory) {
+          throw new BadRequestException('New parent subcategory not found');
+        }
+
+        const oldSubCategory = await this.prisma.subCategory.findUnique({
+          where: { id: subSubCategory.subCategoryId },
+          include: {
+            category: { select: { shopId: true } },
+          },
+        });
+
+        if (
+          oldSubCategory?.category.shopId !== newSubCategory.category.shopId
+        ) {
+          throw new BadRequestException(
+            'Cannot move sub-subcategory to a different shop',
+          );
+        }
       }
 
       const updatedSubSubCategory = await this.prisma.subSubCategory.update({
