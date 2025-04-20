@@ -304,7 +304,7 @@ export class CategoryController {
   }
 
   // SubSubCategory endpoints
-  @Post('subcategories/subsubcategories')
+  @Post('/subsubcategories')
   @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
   async createSubSubCategory(
     @Body() createSubSubCategoryDto: CreateSubSubCategoryDto,
