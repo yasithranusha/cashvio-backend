@@ -86,8 +86,8 @@ export class ProductService {
 
   async getProducts(
     shopId: string,
-    page: number = 1,
-    limit: number = 10,
+    page?: number,
+    limit?: number,
     status?: ProductStatus,
     supplierId?: string,
     search?: string,
@@ -96,8 +96,6 @@ export class ProductService {
     subSubCategoryId?: string,
   ): Promise<PaginatedResponse<Product>> {
     this.logger.debug(`Getting products for shop ${shopId}`);
-
-    const skip = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = { shopId };
     if (status) where.status = status;
@@ -115,17 +113,31 @@ export class ProductService {
     }
 
     try {
+      const pageValue = page || 1;
+      const limitValue = limit || 10;
+      const skip = (pageValue - 1) * limitValue;
+
+      const paginationOptions = {
+        skip,
+        take: limitValue,
+      };
+
       const [products, total] = await Promise.all([
         this.prisma.product.findMany({
           where,
-          skip,
-          take: limit,
+          ...paginationOptions,
           orderBy: { createdAt: 'desc' },
           include: {
             supplier: true,
-            ...(categoryId && { category: true }),
-            ...(subCategoryId && { subCategory: true }),
-            ...(subSubCategoryId && { subSubCategory: true }),
+            category: {
+              select: { id: true, name: true },
+            },
+            subCategory: {
+              select: { id: true, name: true, categoryId: true },
+            },
+            subSubCategory: {
+              select: { id: true, name: true, subCategoryId: true },
+            },
             _count: {
               select: { items: true },
             },
@@ -138,9 +150,9 @@ export class ProductService {
         data: products,
         pagination: {
           total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
+          page: pageValue,
+          limit: limitValue,
+          totalPages: limitValue > 0 ? Math.ceil(total / limitValue) : 1,
         },
       };
     } catch (error) {

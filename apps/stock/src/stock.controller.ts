@@ -3,7 +3,7 @@ import { StockService } from './stock.service';
 import { Public, Roles } from '@app/common';
 import { Role } from '@prisma/client';
 
-@Controller('products')
+@Controller('stock')
 export class StockController {
   constructor(private readonly stockService: StockService) {}
 
