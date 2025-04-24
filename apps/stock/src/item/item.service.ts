@@ -58,14 +58,25 @@ export class ItemService {
   async getItems(query: GetItemsDto): Promise<PaginatedResponse<Item>> {
     this.logger.debug(`Getting items for product ${query.productId}`);
 
-    const skip = (query.page - 1) * query.limit;
-
     try {
+      let paginationOptions = {};
+      let page = 1;
+      let limit = 10;
+
+      // Only apply pagination if both parameters are explicitly provided in the request
+      if (query.page !== undefined && query.limit !== undefined) {
+        page = query.page;
+        limit = query.limit;
+        paginationOptions = {
+          skip: (page - 1) * limit,
+          take: limit,
+        };
+      }
+
       const [items, total] = await Promise.all([
         this.prisma.item.findMany({
           where: { productId: query.productId },
-          skip,
-          take: query.limit,
+          ...paginationOptions,
           orderBy: { createdAt: 'desc' },
         }),
         this.prisma.item.count({
@@ -77,9 +88,9 @@ export class ItemService {
         data: items,
         pagination: {
           total,
-          page: query.page,
-          limit: query.limit,
-          totalPages: Math.ceil(total / query.limit),
+          page,
+          limit,
+          totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
         },
       };
     } catch (error) {
