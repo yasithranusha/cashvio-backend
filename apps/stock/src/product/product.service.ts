@@ -53,6 +53,8 @@ export class ProductService {
         keepingUnits: createProductDto.keepingUnits,
         imageUrls: createProductDto.imageUrls || [],
         status: createProductDto.status || ProductStatus.ACTIVE,
+        warrantyMonths: createProductDto.warrantyMonths,
+        loyaltyPoints: createProductDto.loyaltyPoints,
         shop: { connect: { id: createProductDto.shopId } },
         ...(createProductDto.supplierId && {
           supplier: { connect: { id: createProductDto.supplierId } },
@@ -237,6 +239,12 @@ export class ProductService {
           ? { connect: { id: updateProductDto.subSubCategoryId } }
           : { disconnect: true };
       }
+
+      if (updateProductDto.warrantyMonths !== undefined)
+        updateData.warrantyMonths = updateProductDto.warrantyMonths;
+
+      if (updateProductDto.loyaltyPoints !== undefined)
+        updateData.loyaltyPoints = updateProductDto.loyaltyPoints;
 
       const updatedProduct = await this.prisma.product.update({
         where: { id },
