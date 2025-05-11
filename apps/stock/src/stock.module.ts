@@ -9,6 +9,7 @@ import { SupplierModule } from './supplier/supplier.module';
 import { ProductModule } from './product/product.module';
 import { ItemModule } from './item/item.module';
 import { CategoryModule } from './category/category.module';
+import { DiscountModule } from './discount/discount.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CategoryModule } from './category/category.module';
     ProductModule,
     ItemModule,
     CategoryModule,
+    DiscountModule,
   ],
   controllers: [StockController],
   providers: [StockService],
