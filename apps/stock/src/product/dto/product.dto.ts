@@ -7,54 +7,18 @@ import {
   IsInt,
   Min,
 } from 'class-validator';
-import { ProductStatus } from '@prisma/client';
+import { ProductStatus, Product } from '@prisma/client';
 import { Type } from 'class-transformer';
 
-export class CreateProductDto {
-  @IsString()
-  name: string;
+// Added type for Product with stock information
+export type ProductWithStock = Product & {
+  stock?: number;
+  _count?: {
+    items: number;
+  };
+};
 
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  displayName?: string;
-
-  @IsInt()
-  @IsPositive()
-  keepingUnits: number;
-
-  @IsOptional()
-  @IsArray()
-  imageUrls?: string[];
-
-  @IsOptional()
-  @IsEnum(ProductStatus)
-  status?: ProductStatus;
-
-  @IsOptional()
-  @IsString()
-  supplierId?: string;
-
-  @IsString()
-  shopId: string;
-
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
-
-  @IsOptional()
-  @IsString()
-  subCategoryId?: string;
-
-  @IsOptional()
-  @IsString()
-  subSubCategoryId?: string;
-}
-
-export class UpdateProductDto {
+export class BaseProductDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -77,6 +41,14 @@ export class UpdateProductDto {
   imageUrls?: string[];
 
   @IsOptional()
+  @IsInt()
+  warrantyMonths?: number;
+
+  @IsOptional()
+  @IsInt()
+  loyaltyPoints?: number;
+
+  @IsOptional()
   @IsEnum(ProductStatus)
   status?: ProductStatus;
 
@@ -96,6 +68,20 @@ export class UpdateProductDto {
   @IsString()
   subSubCategoryId?: string;
 }
+
+export class CreateProductDto extends BaseProductDto {
+  @IsString()
+  override name: string;
+
+  @IsInt()
+  @IsPositive()
+  override keepingUnits: number;
+
+  @IsString()
+  shopId: string;
+}
+
+export class UpdateProductDto extends BaseProductDto {}
 
 export class GetProductsDto {
   @IsOptional()
