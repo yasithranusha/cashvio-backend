@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { Role } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -116,8 +116,23 @@ describe('AuthController', () => {
         refreshToken: 'newRefreshToken',
         user: {
           id: '1',
+          name: 'Test User',
           email: 'test@example.com',
           role: Role.SHOP_OWNER,
+          profileImage: '',
+          defaultShopId: '123',
+          defaultShop: {
+            id: '123',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            status: Status.ACTIVE,
+            businessName: 'Test Shop',
+            address: '123 Test St',
+            shopLogo: '',
+            shopBanner: '',
+            contactPhone: null,
+          },
+          shops: [],
         },
       };
 
