@@ -7,8 +7,16 @@ import {
   IsInt,
   Min,
 } from 'class-validator';
-import { ProductStatus } from '@prisma/client';
+import { ProductStatus, Product } from '@prisma/client';
 import { Type } from 'class-transformer';
+
+// Added type for Product with stock information
+export type ProductWithStock = Product & {
+  stock?: number;
+  _count?: {
+    items: number;
+  };
+};
 
 export class BaseProductDto {
   @IsOptional()

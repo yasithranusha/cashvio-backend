@@ -6,7 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@app/common/database/prisma.service';
-import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import {
+  CreateProductDto,
+  ProductWithStock,
+  UpdateProductDto,
+} from './dto/product.dto';
 import { Product, ProductStatus, Prisma } from '@prisma/client';
 import { PaginatedResponse } from '@app/common/types/response';
 
@@ -96,7 +100,7 @@ export class ProductService {
     categoryId?: string,
     subCategoryId?: string,
     subSubCategoryId?: string,
-  ): Promise<PaginatedResponse<Product>> {
+  ): Promise<PaginatedResponse<ProductWithStock>> {
     this.logger.debug(`Getting products for shop ${shopId}`);
 
     const where: Prisma.ProductWhereInput = { shopId };
@@ -148,8 +152,14 @@ export class ProductService {
         this.prisma.product.count({ where }),
       ]);
 
+      // Add stock information to each product
+      const productsWithStock = products.map((product) => ({
+        ...product,
+        stock: product._count?.items || 0,
+      }));
+
       return {
-        data: products,
+        data: productsWithStock,
         pagination: {
           total,
           page: pageValue,
@@ -261,7 +271,7 @@ export class ProductService {
     }
   }
 
-  async getProductById(id: string): Promise<Product> {
+  async getProductById(id: string): Promise<ProductWithStock> {
     this.logger.debug(`Getting product ${id}`);
 
     try {
@@ -282,7 +292,13 @@ export class ProductService {
         throw new NotFoundException('Product not found');
       }
 
-      return product;
+      // Add stock information to the product
+      const productWithStock: ProductWithStock = {
+        ...product,
+        stock: product._count?.items || 0,
+      };
+
+      return productWithStock;
     } catch (error) {
       this.logger.error(`Error getting product: ${error.message}`, error.stack);
       throw error;
