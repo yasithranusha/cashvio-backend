@@ -51,6 +51,23 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+  order:
+    build:
+      context: .
+      dockerfile: ./apps/order/Dockerfile
+      target: development
+    command: yarn start:dev order
+    env_file:
+      - .env
+      - ./apps/order/.env
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - 8083:3003
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq
