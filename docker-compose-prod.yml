@@ -42,6 +42,20 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+  order:
+    build:
+      context: .
+      dockerfile: ./apps/order/Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+      - ./apps/order/.env
+    ports:
+      - 3003:3003
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq
