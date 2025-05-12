@@ -18,7 +18,7 @@ async function bootstrap() {
   await app.startAllMicroservices();
 
   // Start HTTP server
-  const port = configService.get('PORT') || 3002;
+  const port = configService.get('PORT') || 3003;
   await app.listen(port);
   console.log(`Order service running on port ${port}`);
 }
