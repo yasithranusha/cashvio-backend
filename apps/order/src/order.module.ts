@@ -13,7 +13,7 @@ import { OrderService } from './order.service';
       validationSchema: Joi.object({
         RABBIT_MQ_URI: Joi.string().required(),
         RABBIT_MQ_ORDER_QUEUE: Joi.string().required(),
-        PORT: Joi.number().default(3002),
+        PORT: Joi.number().default(3003),
       }),
       envFilePath: ['./apps/order/.env'],
     }),
