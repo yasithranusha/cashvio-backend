@@ -34,3 +34,29 @@ export class OrderController {
     return this.orderService.getOrderById(req.user.id, id);
   }
 }
+
+@Controller('shop-balance')
+export class ShopBalanceController {
+  constructor(private readonly orderService: OrderService) {}
+
+  @Get(':shopId')
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  getShopBalance(@Request() req, @Param('shopId') shopId: string) {
+    return this.orderService.getShopBalance(shopId);
+  }
+}
+
+@Controller('customer-wallet')
+export class CustomerWalletController {
+  constructor(private readonly orderService: OrderService) {}
+
+  @Get(':shopId/:customerId')
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  getCustomerWallet(
+    @Request() req,
+    @Param('shopId') shopId: string,
+    @Param('customerId') customerId: string,
+  ) {
+    return this.orderService.getCustomerWallet(customerId, shopId);
+  }
+}

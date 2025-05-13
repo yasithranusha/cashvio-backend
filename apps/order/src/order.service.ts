@@ -1166,4 +1166,97 @@ export class OrderService implements OnModuleInit {
       }
     }
   }
+
+  /**
+   * Get shop balance with decrypted values
+   * @param shopId Shop ID
+   * @returns Shop balance with numeric values
+   */
+  async getShopBalance(shopId: string): Promise<any> {
+    try {
+      const shopBalance = await this.prisma.shopBalance.findUnique({
+        where: { shopId },
+      });
+
+      if (!shopBalance) {
+        return {
+          cashBalance: 0,
+          cardBalance: 0,
+          bankBalance: 0,
+        };
+      }
+
+      // Decrypt all balance values
+      const cashBalance = parseFloat(
+        await this.decrypt(shopBalance.cashBalance),
+      );
+      const cardBalance = parseFloat(
+        await this.decrypt(shopBalance.cardBalance),
+      );
+      const bankBalance = parseFloat(
+        await this.decrypt(shopBalance.bankBalance),
+      );
+
+      return {
+        id: shopBalance.id,
+        shopId: shopBalance.shopId,
+        cashBalance,
+        cardBalance,
+        bankBalance,
+        createdAt: shopBalance.createdAt,
+        updatedAt: shopBalance.updatedAt,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting shop balance: ${error.message}`,
+        error.stack,
+      );
+      throw new Error('Failed to get shop balance');
+    }
+  }
+
+  /**
+   * Get customer wallet with decrypted values
+   * @param customerId Customer ID
+   * @param shopId Shop ID
+   * @returns Customer wallet with numeric values
+   */
+  async getCustomerWallet(customerId: string, shopId: string): Promise<any> {
+    try {
+      const wallet = await this.prisma.customerWallet.findUnique({
+        where: {
+          customerId_shopId: {
+            customerId,
+            shopId,
+          },
+        },
+      });
+
+      if (!wallet) {
+        return {
+          balance: 0,
+          loyaltyPoints: 0,
+        };
+      }
+
+      // Decrypt wallet values
+      const balance = parseFloat(await this.decrypt(wallet.balance));
+      const loyaltyPoints = parseInt(await this.decrypt(wallet.loyaltyPoints));
+
+      return {
+        customerId: wallet.customerId,
+        shopId: wallet.shopId,
+        balance,
+        loyaltyPoints,
+        createdAt: wallet.createdAt,
+        updatedAt: wallet.updatedAt,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting customer wallet: ${error.message}`,
+        error.stack,
+      );
+      throw new Error('Failed to get customer wallet');
+    }
+  }
 }
