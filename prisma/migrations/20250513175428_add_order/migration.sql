@@ -7,9 +7,6 @@ CREATE TYPE "DiscountType" AS ENUM ('PERCENTAGE', 'FIXED');
 -- CreateEnum
 CREATE TYPE "PaymentMethod" AS ENUM ('CASH', 'CARD', 'BANK', 'WALLET');
 
--- AlterTable
-ALTER TABLE "suppliers" ADD COLUMN     "have_whatsapp" BOOLEAN NOT NULL DEFAULT false;
-
 -- CreateTable
 CREATE TABLE "orders" (
     "id" TEXT NOT NULL,
