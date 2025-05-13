@@ -220,6 +220,41 @@ export class OrderService {
     }
   }
 
+  /**
+   * Encrypt a numeric value for storage in the database
+   * This is used for fields that are not yet string types in the database schema
+   * @param value The numeric value to encrypt
+   * @returns The encrypted value or the original value if encryption fails
+   */
+  private async encryptNumeric(value: number): Promise<number> {
+    try {
+      // For now, we just log that we would encrypt this but return the original value
+      // since the schema still expects a number
+      this.logger.debug(`Would encrypt: ${value}`);
+      return value;
+    } catch (error) {
+      this.logger.error('Error encrypting numeric value:', error);
+      return value;
+    }
+  }
+
+  /**
+   * Decrypt a numeric value from the database
+   * This is used for fields that are not yet string types in the database schema
+   * @param value The value to decrypt
+   * @returns The decrypted value as a number
+   */
+  private async decryptNumeric(value: number): Promise<number> {
+    try {
+      // For now, return the original value since the schema still expects a number
+      // Once schema is updated, this will decrypt the string and convert to number
+      return value;
+    } catch (error) {
+      this.logger.error('Error decrypting numeric value:', error);
+      return value;
+    }
+  }
+
   async updateShopBalance(
     shopId: string,
     paymentMethod: PaymentMethod,
@@ -231,42 +266,76 @@ export class OrderService {
       });
 
       if (!shopBalance) {
-        // Create a new shop balance record
+        // Create a new shop balance record with encrypted values
+        const encryptedCashBalance =
+          paymentMethod === PaymentMethod.CASH
+            ? await this.encrypt(amount.toString())
+            : await this.encrypt('0');
+        const encryptedCardBalance =
+          paymentMethod === PaymentMethod.CARD
+            ? await this.encrypt(amount.toString())
+            : await this.encrypt('0');
+        const encryptedBankBalance =
+          paymentMethod === PaymentMethod.BANK
+            ? await this.encrypt(amount.toString())
+            : await this.encrypt('0');
+
         await this.prisma.shopBalance.create({
           data: {
             shopId,
-            cashBalance:
-              paymentMethod === PaymentMethod.CASH ? amount.toString() : '0',
-            cardBalance:
-              paymentMethod === PaymentMethod.CARD ? amount.toString() : '0',
-            bankBalance:
-              paymentMethod === PaymentMethod.BANK ? amount.toString() : '0',
+            cashBalance: encryptedCashBalance,
+            cardBalance: encryptedCardBalance,
+            bankBalance: encryptedBankBalance,
           },
         });
         return;
       }
 
-      // Update existing shop balance
+      // Update existing shop balance with encrypted values
       switch (paymentMethod) {
         case PaymentMethod.CASH:
-          const cashBalance = parseFloat(shopBalance.cashBalance) + amount;
+          // Decrypt existing balance, add the amount, then encrypt again
+          const currentCashBalance = await this.decrypt(
+            shopBalance.cashBalance,
+          );
+          const newCashBalance = parseFloat(currentCashBalance) + amount;
+          const encryptedCashBalance = await this.encrypt(
+            newCashBalance.toString(),
+          );
+
           await this.prisma.shopBalance.update({
             where: { shopId },
-            data: { cashBalance: cashBalance.toString() },
+            data: { cashBalance: encryptedCashBalance },
           });
           break;
         case PaymentMethod.CARD:
-          const cardBalance = parseFloat(shopBalance.cardBalance) + amount;
+          // Decrypt existing balance, add the amount, then encrypt again
+          const currentCardBalance = await this.decrypt(
+            shopBalance.cardBalance,
+          );
+          const newCardBalance = parseFloat(currentCardBalance) + amount;
+          const encryptedCardBalance = await this.encrypt(
+            newCardBalance.toString(),
+          );
+
           await this.prisma.shopBalance.update({
             where: { shopId },
-            data: { cardBalance: cardBalance.toString() },
+            data: { cardBalance: encryptedCardBalance },
           });
           break;
         case PaymentMethod.BANK:
-          const bankBalance = parseFloat(shopBalance.bankBalance) + amount;
+          // Decrypt existing balance, add the amount, then encrypt again
+          const currentBankBalance = await this.decrypt(
+            shopBalance.bankBalance,
+          );
+          const newBankBalance = parseFloat(currentBankBalance) + amount;
+          const encryptedBankBalance = await this.encrypt(
+            newBankBalance.toString(),
+          );
+
           await this.prisma.shopBalance.update({
             where: { shopId },
-            data: { bankBalance: bankBalance.toString() },
+            data: { bankBalance: encryptedBankBalance },
           });
           break;
       }
@@ -293,21 +362,34 @@ export class OrderService {
       });
 
       if (!wallet) {
-        // Create a new wallet
+        // Create a new wallet with encrypted values
+        const encryptedBalance = await this.encrypt(amount.toString());
+        const encryptedLoyaltyPoints = await this.encrypt(
+          loyaltyPoints.toString(),
+        );
+
         await this.prisma.customerWallet.create({
           data: {
             customerId,
             shopId,
-            balance: amount.toString(),
-            loyaltyPoints: loyaltyPoints.toString(),
+            balance: encryptedBalance,
+            loyaltyPoints: encryptedLoyaltyPoints,
           },
         });
         return;
       }
 
-      // Update existing wallet
-      const newBalance = parseFloat(wallet.balance) + amount;
-      const newLoyaltyPoints = parseInt(wallet.loyaltyPoints) + loyaltyPoints;
+      // Update existing wallet with encryption
+      const currentBalance = await this.decrypt(wallet.balance);
+      const currentLoyaltyPoints = await this.decrypt(wallet.loyaltyPoints);
+
+      const newBalance = parseFloat(currentBalance) + amount;
+      const newLoyaltyPoints = parseInt(currentLoyaltyPoints) + loyaltyPoints;
+
+      const encryptedBalance = await this.encrypt(newBalance.toString());
+      const encryptedLoyaltyPoints = await this.encrypt(
+        newLoyaltyPoints.toString(),
+      );
 
       await this.prisma.customerWallet.update({
         where: {
@@ -317,8 +399,8 @@ export class OrderService {
           },
         },
         data: {
-          balance: newBalance.toString(),
-          loyaltyPoints: newLoyaltyPoints.toString(),
+          balance: encryptedBalance,
+          loyaltyPoints: encryptedLoyaltyPoints,
         },
       });
     } catch (error) {
@@ -341,7 +423,13 @@ export class OrderService {
         },
       });
 
-      return wallet ? parseFloat(wallet.balance) : 0;
+      if (!wallet) {
+        return 0;
+      }
+
+      // Decrypt the balance
+      const decryptedBalance = await this.decrypt(wallet.balance);
+      return parseFloat(decryptedBalance);
     } catch (error) {
       this.logger.error('Error fetching customer wallet balance:', error);
       return 0;
@@ -403,7 +491,16 @@ export class OrderService {
         }
 
         // Calculate price for this item
-        const itemPrice = orderItem.customPrice || item.sellPrice;
+        let itemPrice: number;
+        if (orderItem.customPrice !== undefined) {
+          itemPrice = parseFloat(orderItem.customPrice.toString());
+        } else {
+          const sellPrice =
+            typeof item.sellPrice === 'string'
+              ? parseFloat(item.sellPrice)
+              : item.sellPrice;
+          itemPrice = sellPrice;
+        }
         itemSubtotal += itemPrice;
 
         orderItemsData.push({
@@ -412,7 +509,10 @@ export class OrderService {
           itemId: item.id,
           quantity: 1,
           originalPrice: item.sellPrice,
-          sellingPrice: orderItem.customPrice || item.sellPrice,
+          sellingPrice:
+            orderItem.customPrice !== undefined
+              ? orderItem.customPrice
+              : item.sellPrice,
         });
       }
 
@@ -508,7 +608,7 @@ export class OrderService {
 
         // Create order
         await tx.order.create({
-          data: {
+          data: await this.prepareOrderData({
             id: orderId,
             orderNumber,
             shopId,
@@ -519,21 +619,22 @@ export class OrderService {
             discountType: createOrderDto.discountType || DiscountType.FIXED,
             total: finalTotal,
             paid: totalPayment,
+            paymentDue,
             note: createOrderDto.note,
-          },
+          }),
         });
 
         // Create order items
         for (const itemData of orderItemsData) {
           await tx.orderItem.create({
-            data: itemData,
+            data: await this.prepareOrderItemData(itemData),
           });
         }
 
         // Create payments
         for (const paymentData of paymentsData) {
           await tx.payment.create({
-            data: paymentData,
+            data: await this.preparePaymentData(paymentData),
           });
 
           // Update shop balance for non-wallet payments
@@ -563,10 +664,14 @@ export class OrderService {
             // Otherwise clear the balance completely
             if (createOrderDto.duePaidAmount !== undefined) {
               // Calculate new balance - can't go above 0 if it was negative
-              const currentBalance = parseFloat(wallet.balance);
+              const currentBalance = await this.decrypt(wallet.balance);
+              const parsedBalance = parseFloat(currentBalance);
               const newBalance = Math.min(
                 0,
-                currentBalance + createOrderDto.duePaidAmount,
+                parsedBalance + createOrderDto.duePaidAmount,
+              );
+              const encryptedBalance = await this.encrypt(
+                newBalance.toString(),
               );
 
               await tx.customerWallet.update({
@@ -577,11 +682,12 @@ export class OrderService {
                   },
                 },
                 data: {
-                  balance: newBalance.toString(),
+                  balance: encryptedBalance,
                 },
               });
             } else {
               // Clear the payment due by setting wallet balance to 0
+              const encryptedZero = await this.encrypt('0');
               await tx.customerWallet.update({
                 where: {
                   customerId_shopId: {
@@ -590,7 +696,7 @@ export class OrderService {
                   },
                 },
                 data: {
-                  balance: '0',
+                  balance: encryptedZero,
                 },
               });
             }
@@ -697,7 +803,38 @@ export class OrderService {
         },
       });
 
-      return orders;
+      // Decrypt all financial data
+      const decryptedOrders = await Promise.all(
+        orders.map(async (order) => {
+          // Decrypt order data
+          const decryptedOrder = await this.decryptOrderData(order);
+
+          // Decrypt order items
+          if (
+            decryptedOrder.orderItems &&
+            decryptedOrder.orderItems.length > 0
+          ) {
+            decryptedOrder.orderItems = await Promise.all(
+              decryptedOrder.orderItems.map(
+                async (item) => await this.decryptOrderItemData(item),
+              ),
+            );
+          }
+
+          // Decrypt payments
+          if (decryptedOrder.payments && decryptedOrder.payments.length > 0) {
+            decryptedOrder.payments = await Promise.all(
+              decryptedOrder.payments.map(
+                async (payment) => await this.decryptPaymentData(payment),
+              ),
+            );
+          }
+
+          return decryptedOrder;
+        }),
+      );
+
+      return decryptedOrders;
     } catch (error) {
       this.logger.error('Error fetching orders:', error);
       throw error;
@@ -706,8 +843,6 @@ export class OrderService {
 
   async getOrderById(userId: string, orderId: string): Promise<any> {
     try {
-      // Since we just added these models to the schema but haven't generated the client yet,
-      // we'll need to use $queryRaw for now
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
         include: {
@@ -740,10 +875,151 @@ export class OrderService {
       // Verify user has access to this shop
       await this.getShopForUser(userId, order.shopId);
 
-      return order;
+      // Decrypt order data
+      const decryptedOrder = await this.decryptOrderData(order);
+
+      // Decrypt order items
+      if (decryptedOrder.orderItems && decryptedOrder.orderItems.length > 0) {
+        decryptedOrder.orderItems = await Promise.all(
+          decryptedOrder.orderItems.map(
+            async (item) => await this.decryptOrderItemData(item),
+          ),
+        );
+      }
+
+      // Decrypt payments
+      if (decryptedOrder.payments && decryptedOrder.payments.length > 0) {
+        decryptedOrder.payments = await Promise.all(
+          decryptedOrder.payments.map(
+            async (payment) => await this.decryptPaymentData(payment),
+          ),
+        );
+      }
+
+      return decryptedOrder;
     } catch (error) {
       this.logger.error('Error fetching order by ID:', error);
       throw error;
     }
+  }
+
+  /**
+   * Helper method to prepare OrderItem data with encryption
+   * @param item Original order item data
+   * @returns Prepared order item data
+   */
+  private async prepareOrderItemData(item: any): Promise<any> {
+    return {
+      ...item,
+      originalPrice: await this.encrypt(item.originalPrice.toString()),
+      sellingPrice: await this.encrypt(item.sellingPrice.toString()),
+    };
+  }
+
+  /**
+   * Helper method to prepare Payment data with encryption
+   * @param payment Original payment data
+   * @returns Prepared payment data
+   */
+  private async preparePaymentData(payment: any): Promise<any> {
+    return {
+      ...payment,
+      amount: await this.encrypt(payment.amount.toString()),
+    };
+  }
+
+  /**
+   * Helper method to prepare Order data with encryption
+   * @param order Original order data
+   * @returns Prepared order data
+   */
+  private async prepareOrderData(order: any): Promise<any> {
+    return {
+      ...order,
+      subtotal: await this.encrypt(order.subtotal.toString()),
+      discount: await this.encrypt(order.discount.toString()),
+      total: await this.encrypt(order.total.toString()),
+      paid: await this.encrypt(order.paid.toString()),
+      paymentDue: await this.encrypt(order.paymentDue.toString()),
+    };
+  }
+
+  /**
+   * Helper method to decrypt Order data fields
+   * @param order Encrypted order data
+   * @returns Order with decrypted financial fields
+   */
+  private async decryptOrderData(order: any): Promise<any> {
+    const decryptedOrder = { ...order };
+
+    if (decryptedOrder.subtotal) {
+      decryptedOrder.subtotal = parseFloat(
+        await this.decrypt(decryptedOrder.subtotal),
+      );
+    }
+
+    if (decryptedOrder.discount) {
+      decryptedOrder.discount = parseFloat(
+        await this.decrypt(decryptedOrder.discount),
+      );
+    }
+
+    if (decryptedOrder.total) {
+      decryptedOrder.total = parseFloat(
+        await this.decrypt(decryptedOrder.total),
+      );
+    }
+
+    if (decryptedOrder.paid) {
+      decryptedOrder.paid = parseFloat(await this.decrypt(decryptedOrder.paid));
+    }
+
+    if (decryptedOrder.paymentDue) {
+      decryptedOrder.paymentDue = parseFloat(
+        await this.decrypt(decryptedOrder.paymentDue),
+      );
+    }
+
+    return decryptedOrder;
+  }
+
+  /**
+   * Helper method to decrypt OrderItem data fields
+   * @param item Encrypted order item data
+   * @returns Order item with decrypted financial fields
+   */
+  private async decryptOrderItemData(item: any): Promise<any> {
+    const decryptedItem = { ...item };
+
+    if (decryptedItem.originalPrice) {
+      decryptedItem.originalPrice = parseFloat(
+        await this.decrypt(decryptedItem.originalPrice),
+      );
+    }
+
+    if (decryptedItem.sellingPrice) {
+      decryptedItem.sellingPrice = parseFloat(
+        await this.decrypt(decryptedItem.sellingPrice),
+      );
+    }
+
+    return decryptedItem;
+  }
+
+  /**
+   * Helper method to decrypt Payment data fields
+   * @param payment Encrypted payment data
+   * @returns Payment with decrypted financial fields
+   */
+  private async decryptPaymentData(payment: any): Promise<any> {
+    const decryptedPayment = { ...payment };
+
+    if (decryptedPayment.amount) {
+      decryptedPayment.amount = parseFloat(
+        await this.decrypt(decryptedPayment.amount),
+      );
+    }
+
+    return decryptedPayment;
   }
 }

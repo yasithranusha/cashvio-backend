@@ -154,8 +154,8 @@ model ProductDiscount {
 model Item {
   id             String      @id @default(uuid())
   barcode        String      @unique
-  broughtPrice   Float       @map("brought_price")
-  sellPrice      Float       @map("sell_price")
+  broughtPrice   String      @map("brought_price")
+  sellPrice      String      @map("sell_price")
   warrantyPeriod DateTime?   @map("warranty_period")
   productId      String      @map("product_id")
   createdAt      DateTime    @default(now()) @map("created_at")
@@ -239,12 +239,12 @@ model Order {
   shopId       String       @map("shop_id")
   customerId   String?      @map("customer_id")
   status       OrderStatus  @default(PENDING)
-  subtotal     Float
-  discount     Float        @default(0)
+  subtotal     String
+  discount     String       @default("0")
   discountType DiscountType @default(FIXED) @map("discount_type")
-  total        Float
-  paid         Float
-  paymentDue   Float        @default(0) @map("payment_due")
+  total        String
+  paid         String
+  paymentDue   String       @default("0") @map("payment_due")
   note         String?
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
@@ -266,8 +266,8 @@ model OrderItem {
   productId     String   @map("product_id")
   itemId        String   @map("item_id")
   quantity      Int      @default(1)
-  originalPrice Float    @map("original_price")
-  sellingPrice  Float    @map("selling_price")
+  originalPrice String   @map("original_price")
+  sellingPrice  String   @map("selling_price")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   item          Item     @relation(fields: [itemId], references: [id])
@@ -283,7 +283,7 @@ model OrderItem {
 model Payment {
   id        String        @id @default(uuid())
   orderId   String        @map("order_id")
-  amount    Float
+  amount    String
   method    PaymentMethod
   reference String?
   createdAt DateTime      @default(now()) @map("created_at")
