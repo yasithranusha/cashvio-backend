@@ -72,3 +72,19 @@ export class GetItemsDto {
   @IsNotEmpty()
   productId: string;
 }
+
+// Type interfaces for use with Prisma
+export interface ItemCreateInput {
+  barcode: string;
+  broughtPrice: string;
+  sellPrice: string;
+  warrantyPeriod?: Date;
+  productId: string;
+}
+
+export interface ItemUpdateInput {
+  barcode?: string;
+  broughtPrice?: string;
+  sellPrice?: string;
+  warrantyPeriod?: Date;
+}
