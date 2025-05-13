@@ -24,6 +24,8 @@ model User {
   defaultShopId   String?    @map("default_shop_id")
   shopAccess      UserShop[]
   defaultShop     Shop?      @relation("DefaultShop", fields: [defaultShopId], references: [id])
+  orders          Order[]
+  wallets         CustomerWallet[]
 
   @@index([email])
   @@index([defaultShopId])
@@ -47,6 +49,9 @@ model Shop {
   suppliers       Supplier[]
   users           UserShop[]
   defaultForUsers User[]     @relation("DefaultShop")
+  orders          Order[]
+  customerWallets CustomerWallet[]
+  shopBalance     ShopBalance?
 
   @@index([status])
   @@map("shops")
@@ -103,6 +108,7 @@ model Product {
   subCategory      SubCategory?    @relation(fields: [subCategoryId], references: [id])
   subSubCategory   SubSubCategory? @relation(fields: [subSubCategoryId], references: [id])
   supplier         Supplier?       @relation(fields: [supplierId], references: [id])
+  orderItems       OrderItem[]
 
   @@index([shopId])
   @@index([supplierId])
@@ -123,6 +129,7 @@ model Item {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   product        Product   @relation(fields: [productId], references: [id])
+  orderItems     OrderItem[]
 
   @@index([productId])
   @@map("items")
@@ -194,6 +201,97 @@ model Otp {
   @@map("otps")
 }
 
+model Order {
+  id              String           @id @default(uuid())
+  orderNumber     String           @unique @map("order_number")
+  shopId          String           @map("shop_id")
+  customerId      String?          @map("customer_id")
+  status          OrderStatus      @default(PENDING)
+  subtotal        Float
+  discount        Float            @default(0)
+  discountType    DiscountType     @default(FIXED) @map("discount_type")
+  total           Float
+  paid            Float
+  note            String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  shop            Shop             @relation(fields: [shopId], references: [id])
+  customer        User?            @relation(fields: [customerId], references: [id])
+  orderItems      OrderItem[]
+  payments        Payment[]
+
+  @@index([shopId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String           @id @default(uuid())
+  orderId         String           @map("order_id")
+  productId       String           @map("product_id")
+  itemId          String           @map("item_id")
+  quantity        Int              @default(1)
+  originalPrice   Float            @map("original_price")
+  sellingPrice    Float            @map("selling_price")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product          @relation(fields: [productId], references: [id])
+  item            Item             @relation(fields: [itemId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([itemId])
+  @@map("order_items")
+}
+
+model Payment {
+  id              String           @id @default(uuid())
+  orderId         String           @map("order_id")
+  amount          Float
+  method          PaymentMethod
+  reference       String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([method])
+  @@map("payments")
+}
+
+model CustomerWallet {
+  customerId      String           @map("customer_id")
+  shopId          String           @map("shop_id")
+  balance         Float            @default(0)
+  loyaltyPoints   Int              @default(0) @map("loyalty_points")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  customer        User             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, shopId])
+  @@index([customerId])
+  @@index([shopId])
+  @@map("customer_wallets")
+}
+
+model ShopBalance {
+  id              String           @id @default(uuid())
+  shopId          String           @unique @map("shop_id")
+  cashBalance     Float            @default(0) @map("cash_balance")
+  cardBalance     Float            @default(0) @map("card_balance")
+  bankBalance     Float            @default(0) @map("bank_balance")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@map("shop_balances")
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -211,4 +309,23 @@ enum Role {
   SHOP_STAFF
   CUSTOMER
   SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK
+  WALLET
 }
