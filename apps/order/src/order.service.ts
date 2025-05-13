@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 
 import { PrismaService } from '@app/common/database/prisma.service';
@@ -16,29 +17,68 @@ import { PaymentMethod, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
-export class OrderService {
+export class OrderService implements OnModuleInit {
   private readonly logger = new Logger(OrderService.name);
-  private readonly kmsClient: KMS;
-  private readonly kmsKeyId: string;
-  private readonly kmsKeyAlias: string;
+  private kmsClient: KMS;
+  private kmsKeyId: string;
+  private kmsKeyAlias: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
+    // Debug logging to check environment variables
+    this.logger.debug('AWS Configuration:');
+    this.logger.debug(
+      `Region: ${this.configService.get<string>('AWS_REGION')}`,
+    );
+    this.logger.debug(
+      `Key ID: ${this.configService.get<string>('AWS_KMS_KEY_ID')}`,
+    );
+    this.logger.debug(
+      `Key Alias: ${this.configService.get<string>('AWS_KMS_KEY_ALIAS')}`,
+    );
+    this.logger.debug(
+      `Has Access Key: ${!!this.configService.get<string>('AWS_ACCESS_KEY_ID')}`,
+    );
+    this.logger.debug(
+      `Has Secret Key: ${!!this.configService.get<string>('AWS_SECRET_ACCESS_KEY')}`,
+    );
+
     this.kmsKeyId = this.configService.get<string>('AWS_KMS_KEY_ID');
     this.kmsKeyAlias = this.configService.get<string>('AWS_KMS_KEY_ALIAS');
 
-    // Initialize AWS KMS client
-    this.kmsClient = new KMS({
-      region: this.configService.get<string>('AWS_REGION', 'us-east-1'),
-      credentials: {
-        accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.configService.get<string>(
-          'AWS_SECRET_ACCESS_KEY',
-        ),
-      },
-    });
+    // Only initialize AWS KMS client if credentials are available
+    if (
+      this.configService.get<string>('AWS_ACCESS_KEY_ID') &&
+      this.configService.get<string>('AWS_SECRET_ACCESS_KEY')
+    ) {
+      try {
+        this.kmsClient = new KMS({
+          region: this.configService.get<string>('AWS_REGION', 'us-east-1'),
+          credentials: {
+            accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
+            secretAccessKey: this.configService.get<string>(
+              'AWS_SECRET_ACCESS_KEY',
+            ),
+          },
+        });
+        this.logger.log('AWS KMS client initialized successfully');
+      } catch (error) {
+        this.logger.error(
+          'Failed to initialize AWS KMS client, using local encryption fallback',
+          error,
+        );
+        this.kmsKeyId = null;
+        this.kmsKeyAlias = null;
+      }
+    } else {
+      this.logger.warn(
+        'AWS credentials not found, using local encryption fallback',
+      );
+      // Initialize an empty KMS client to avoid null reference errors
+      this.kmsClient = new KMS({ region: 'us-east-1' });
+    }
   }
 
   async getShopForUser(userId: string, shopId?: string): Promise<string> {
@@ -140,8 +180,8 @@ export class OrderService {
    */
   private async encrypt(text: string): Promise<string> {
     if (!this.kmsKeyId && !this.kmsKeyAlias) {
-      this.logger.warn('KMS Key ID not configured, storing data unencrypted');
-      return text;
+      this.logger.warn('KMS Key ID not configured, using local encryption');
+      return this.encryptLocal(text);
     }
 
     try {
@@ -160,8 +200,18 @@ export class OrderService {
       return Buffer.from(response.CiphertextBlob).toString('base64');
     } catch (error) {
       this.logger.error('Encryption error:', error);
+      // Use local encryption as fallback
+      return this.encryptLocal(text);
+    }
+  }
 
-      // Fallback if primary encryption fails
+  /**
+   * Local encryption fallback using AES-256-CBC
+   * @param text Data to encrypt
+   * @returns Encrypted data with format: fallback:{iv}:{key}:{encrypted}
+   */
+  private encryptLocal(text: string): string {
+    try {
       const key = crypto.randomBytes(32);
       const iv = crypto.randomBytes(16);
       const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
@@ -170,6 +220,11 @@ export class OrderService {
       encrypted += cipher.final('hex');
 
       return `fallback:${iv.toString('hex')}:${key.toString('hex')}:${encrypted}`;
+    } catch (error) {
+      this.logger.error('Local encryption error:', error);
+      // If all encryption fails, return the original text
+      // This is not ideal for security but prevents application failure
+      return text;
     }
   }
 
@@ -185,21 +240,15 @@ export class OrderService {
 
     // If no KMS key is configured or data isn't encrypted, return as is
     if ((!this.kmsKeyId && !this.kmsKeyAlias) || encryptedText === '0') {
-      return encryptedText;
+      if (!encryptedText.startsWith('fallback:')) {
+        return encryptedText;
+      }
     }
 
     try {
       // Handle fallback encryption
       if (encryptedText.startsWith('fallback:')) {
-        const [, ivHex, keyHex, encrypted] = encryptedText.split(':');
-        const iv = Buffer.from(ivHex, 'hex');
-        const key = Buffer.from(keyHex, 'hex');
-
-        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-
-        return decrypted;
+        return this.decryptLocal(encryptedText);
       }
 
       // AWS KMS decryption
@@ -216,6 +265,34 @@ export class OrderService {
       return Buffer.from(response.Plaintext).toString('utf8');
     } catch (error) {
       this.logger.error('Decryption error:', error);
+
+      // If it's a fallback encrypted value, try to decrypt it locally
+      if (encryptedText.startsWith('fallback:')) {
+        return this.decryptLocal(encryptedText);
+      }
+
+      return encryptedText; // Return original on failure
+    }
+  }
+
+  /**
+   * Local decryption for fallback encrypted data
+   * @param encryptedText Encrypted data with format: fallback:{iv}:{key}:{encrypted}
+   * @returns Decrypted data
+   */
+  private decryptLocal(encryptedText: string): string {
+    try {
+      const [, ivHex, keyHex, encrypted] = encryptedText.split(':');
+      const iv = Buffer.from(ivHex, 'hex');
+      const key = Buffer.from(keyHex, 'hex');
+
+      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      return decrypted;
+    } catch (error) {
+      this.logger.error('Local decryption error:', error);
       return encryptedText; // Return original on failure
     }
   }
@@ -587,160 +664,180 @@ export class OrderService {
         : totalPayment - totalWithDue;
 
     try {
-      // Use a single transaction for everything
-      return await this.prisma.$transaction(async (tx) => {
-        // Create the order
-        const orderId = crypto.randomUUID();
+      // Pre-encrypt data outside of the transaction to reduce transaction time
+      const orderData = await this.prepareOrderData({
+        id: crypto.randomUUID(),
+        orderNumber,
+        shopId,
+        customerId,
+        status: OrderStatus.COMPLETED,
+        subtotal,
+        discount,
+        discountType: createOrderDto.discountType || DiscountType.FIXED,
+        total: finalTotal,
+        paid: totalPayment,
+        paymentDue,
+        note: createOrderDto.note,
+      });
 
-        // Update order items with orderId
-        for (const itemData of orderItemsData) {
-          itemData.orderId = orderId;
-        }
+      // Pre-encrypt order items data
+      const preparedOrderItems = await Promise.all(
+        orderItemsData.map(async (item) => {
+          item.orderId = orderData.id;
+          return await this.prepareOrderItemData(item);
+        }),
+      );
 
-        // Prepare payments data
-        const paymentsData = createOrderDto.payments.map((payment) => ({
-          id: crypto.randomUUID(),
-          orderId,
-          amount: payment.amount,
-          method: payment.method,
-          reference: payment.reference || null,
-        }));
+      // Pre-encrypt payments data
+      const paymentsData = createOrderDto.payments.map((payment) => ({
+        id: crypto.randomUUID(),
+        orderId: orderData.id,
+        amount: payment.amount,
+        method: payment.method,
+        reference: payment.reference || null,
+      }));
 
-        // Create order
-        await tx.order.create({
-          data: await this.prepareOrderData({
-            id: orderId,
-            orderNumber,
-            shopId,
-            customerId,
-            status: OrderStatus.COMPLETED,
-            subtotal,
-            discount,
-            discountType: createOrderDto.discountType || DiscountType.FIXED,
-            total: finalTotal,
-            paid: totalPayment,
-            paymentDue,
-            note: createOrderDto.note,
-          }),
-        });
+      const preparedPayments = await Promise.all(
+        paymentsData.map(
+          async (payment) => await this.preparePaymentData(payment),
+        ),
+      );
 
-        // Create order items
-        for (const itemData of orderItemsData) {
-          await tx.orderItem.create({
-            data: await this.prepareOrderItemData(itemData),
-          });
-        }
-
-        // Create payments
-        for (const paymentData of paymentsData) {
-          await tx.payment.create({
-            data: await this.preparePaymentData(paymentData),
+      // Use a single transaction with increased timeout for everything
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // Create order
+          await tx.order.create({
+            data: orderData,
           });
 
-          // Update shop balance for non-wallet payments
-          if (paymentData.method !== PaymentMethod.WALLET) {
-            await this.updateShopBalance(
-              shopId,
-              paymentData.method,
-              paymentData.amount,
-            );
+          // Create order items
+          for (const itemData of preparedOrderItems) {
+            await tx.orderItem.create({
+              data: itemData,
+            });
           }
-        }
 
-        // Handle payment due
-        if (useWalletToPayDue && customerId) {
-          // Only adjust the wallet balance by the amount due being paid
-          const wallet = await tx.customerWallet.findUnique({
-            where: {
-              customerId_shopId: {
-                customerId,
+          // Create payments
+          for (const paymentData of preparedPayments) {
+            await tx.payment.create({
+              data: paymentData,
+            });
+
+            // Update shop balance for non-wallet payments
+            if (paymentData.method !== PaymentMethod.WALLET) {
+              await this.updateShopBalance(
                 shopId,
-              },
-            },
-          });
-
-          if (wallet) {
-            // If using duePaidAmount, only adjust by that amount
-            // Otherwise clear the balance completely
-            if (createOrderDto.duePaidAmount !== undefined) {
-              // Calculate new balance - can't go above 0 if it was negative
-              const currentBalance = await this.decrypt(wallet.balance);
-              const parsedBalance = parseFloat(currentBalance);
-              const newBalance = Math.min(
-                0,
-                parsedBalance + createOrderDto.duePaidAmount,
+                paymentData.method,
+                paymentData.amount,
               );
-              const encryptedBalance = await this.encrypt(
-                newBalance.toString(),
-              );
-
-              await tx.customerWallet.update({
-                where: {
-                  customerId_shopId: {
-                    customerId,
-                    shopId,
-                  },
-                },
-                data: {
-                  balance: encryptedBalance,
-                },
-              });
-            } else {
-              // Clear the payment due by setting wallet balance to 0
-              const encryptedZero = await this.encrypt('0');
-              await tx.customerWallet.update({
-                where: {
-                  customerId_shopId: {
-                    customerId,
-                    shopId,
-                  },
-                },
-                data: {
-                  balance: encryptedZero,
-                },
-              });
             }
           }
-        }
 
-        // Add extra payment to wallet if requested and customer exists
-        if (
-          extraPayment > 0 &&
-          customerId &&
-          (createOrderDto.storeExtraInWallet ||
-            createOrderDto.extraWalletAmount !== undefined)
-        ) {
-          await this.updateCustomerWallet(customerId, shopId, extraPayment, 0);
-        }
-
-        // Get the complete order with all relations
-        const completedOrder = await tx.order.findUnique({
-          where: { id: orderId },
-          include: {
-            customer: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                contactNumber: true,
+          // Handle payment due
+          if (useWalletToPayDue && customerId) {
+            // Only adjust the wallet balance by the amount due being paid
+            const wallet = await tx.customerWallet.findUnique({
+              where: {
+                customerId_shopId: {
+                  customerId,
+                  shopId,
+                },
               },
-            },
-            orderItems: {
-              include: {
-                product: {
-                  select: {
-                    name: true,
-                    imageUrls: true,
+            });
+
+            if (wallet) {
+              // If using duePaidAmount, only adjust by that amount
+              // Otherwise clear the balance completely
+              if (createOrderDto.duePaidAmount !== undefined) {
+                // Calculate new balance - can't go above 0 if it was negative
+                const currentBalance = await this.decrypt(wallet.balance);
+                const parsedBalance = parseFloat(currentBalance);
+                const newBalance = Math.min(
+                  0,
+                  parsedBalance + createOrderDto.duePaidAmount,
+                );
+                const encryptedBalance = await this.encrypt(
+                  newBalance.toString(),
+                );
+
+                await tx.customerWallet.update({
+                  where: {
+                    customerId_shopId: {
+                      customerId,
+                      shopId,
+                    },
+                  },
+                  data: {
+                    balance: encryptedBalance,
+                  },
+                });
+              } else {
+                // Clear the payment due by setting wallet balance to 0
+                const encryptedZero = await this.encrypt('0');
+                await tx.customerWallet.update({
+                  where: {
+                    customerId_shopId: {
+                      customerId,
+                      shopId,
+                    },
+                  },
+                  data: {
+                    balance: encryptedZero,
+                  },
+                });
+              }
+            }
+          }
+
+          // Add extra payment to wallet if requested and customer exists
+          if (
+            extraPayment > 0 &&
+            customerId &&
+            (createOrderDto.storeExtraInWallet ||
+              createOrderDto.extraWalletAmount !== undefined)
+          ) {
+            await this.updateCustomerWallet(
+              customerId,
+              shopId,
+              extraPayment,
+              0,
+            );
+          }
+
+          // Get the complete order with all relations
+          const completedOrder = await tx.order.findUnique({
+            where: { id: orderData.id },
+            include: {
+              customer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  contactNumber: true,
+                },
+              },
+              orderItems: {
+                include: {
+                  product: {
+                    select: {
+                      name: true,
+                      imageUrls: true,
+                    },
                   },
                 },
               },
+              payments: true,
             },
-            payments: true,
-          },
-        });
+          });
 
-        return completedOrder;
-      });
+          return completedOrder;
+        },
+        {
+          // Increase transaction timeout to 30 seconds to accommodate encryption operations
+          timeout: 30000,
+        },
+      );
     } catch (error) {
       this.logger.error('Error creating order:', error);
       throw error;
@@ -1021,5 +1118,52 @@ export class OrderService {
     }
 
     return decryptedPayment;
+  }
+
+  /**
+   * Verify KMS key permissions by attempting a test encryption
+   * This helps identify permission issues early
+   */
+  private async verifyKmsPermissions(): Promise<boolean> {
+    if (!this.kmsKeyId && !this.kmsKeyAlias) {
+      return false;
+    }
+
+    try {
+      const testText = 'test-encryption';
+      const encryptParams = {
+        KeyId: this.kmsKeyId || `alias/${this.kmsKeyAlias}`,
+        Plaintext: Buffer.from(testText),
+      };
+
+      const response = await this.kmsClient.encrypt(encryptParams);
+      if (!response.CiphertextBlob) {
+        throw new Error('Failed to encrypt test data with KMS');
+      }
+
+      this.logger.log('KMS permissions verified successfully');
+      return true;
+    } catch (error) {
+      this.logger.error('KMS permission verification failed:', error);
+      this.logger.warn('Switching to local encryption fallback');
+      return false;
+    }
+  }
+
+  async onModuleInit() {
+    // Verify KMS permissions during application startup
+    if (
+      this.configService.get<string>('AWS_ACCESS_KEY_ID') &&
+      this.configService.get<string>('AWS_SECRET_ACCESS_KEY')
+    ) {
+      const hasKmsPermissions = await this.verifyKmsPermissions();
+      if (!hasKmsPermissions) {
+        this.logger.warn(
+          'KMS permissions check failed, using local encryption fallback',
+        );
+        this.kmsKeyId = null;
+        this.kmsKeyAlias = null;
+      }
+    }
   }
 }
