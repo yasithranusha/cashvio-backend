@@ -8,22 +8,24 @@ datasource db {
 }
 
 model User {
-  id              String     @id @default(uuid())
+  id              String           @id @default(uuid())
   name            String
   dob             DateTime?
   profileImage    String?
-  status          Status     @default(ACTIVE)
-  email           String     @unique
+  status          Status           @default(ACTIVE)
+  email           String           @unique
   password        String
-  role            Role       @default(SHOP_STAFF)
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  role            Role             @default(SHOP_STAFF)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
   contactNumber   String?
   refreshToken    String?
   refreshTokenExp DateTime?
-  defaultShopId   String?    @map("default_shop_id")
+  defaultShopId   String?          @map("default_shop_id")
+  wallets         CustomerWallet[]
+  orders          Order[]
   shopAccess      UserShop[]
-  defaultShop     Shop?      @relation("DefaultShop", fields: [defaultShopId], references: [id])
+  defaultShop     Shop?            @relation("DefaultShop", fields: [defaultShopId], references: [id])
 
   @@index([email])
   @@index([defaultShopId])
@@ -33,21 +35,23 @@ model User {
 }
 
 model Shop {
-  id              String     @id @default(uuid())
-  businessName    String     @map("business_name")
-  shopCategory    String?    @map("shop_category")
+  id              String           @id @default(uuid())
+  businessName    String           @map("business_name")
   address         String
-  shopLogo        String?    @map("shop_logo")
-  shopBanner      String?    @map("shop_banner")
-  contactPhone    String?    @map("contact_phone")
-  status          Status     @default(ACTIVE)
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  shopLogo        String?          @map("shop_logo")
+  shopBanner      String?          @map("shop_banner")
+  contactPhone    String?          @map("contact_phone")
+  status          Status           @default(ACTIVE)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
   Category        Category[]
+  customerWallets CustomerWallet[]
+  orders          Order[]
   products        Product[]
+  shopBalance     ShopBalance?
   suppliers       Supplier[]
   users           UserShop[]
-  defaultForUsers User[]     @relation("DefaultShop")
+  defaultForUsers User[]           @relation("DefaultShop")
 
   @@index([status])
   @@map("shops")
@@ -84,29 +88,27 @@ model Supplier {
 }
 
 model Product {
-  id               String            @id @default(uuid())
+  id               String          @id @default(uuid())
   name             String
   description      String?
-  shopId           String            @map("shop_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  displayName      String?           @map("display_name")
-  imageUrls        String[]          @map("image_urls")
-  keepingUnits     Int               @map("keeping_units")
-  warrantyMonths   Int?              @map("warranty_months")
-  loyaltyPoints    Int?              @map("loyalty_points")
-  supplierId       String?           @map("supplier_id")
-  categoryId       String?           @map("category_id")
-  subCategoryId    String?           @map("sub_category_id")
-  subSubCategoryId String?           @map("sub_sub_category_id")
-  status           ProductStatus     @default(ACTIVE)
+  shopId           String          @map("shop_id")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  displayName      String?         @map("display_name")
+  imageUrls        String[]        @map("image_urls")
+  keepingUnits     Int             @map("keeping_units")
+  supplierId       String?         @map("supplier_id")
+  categoryId       String?         @map("category_id")
+  subCategoryId    String?         @map("sub_category_id")
+  subSubCategoryId String?         @map("sub_sub_category_id")
+  status           ProductStatus   @default(ACTIVE)
   items            Item[]
-  category         Category?         @relation(fields: [categoryId], references: [id])
-  shop             Shop              @relation(fields: [shopId], references: [id])
-  subCategory      SubCategory?      @relation(fields: [subCategoryId], references: [id])
-  subSubCategory   SubSubCategory?   @relation(fields: [subSubCategoryId], references: [id])
-  supplier         Supplier?         @relation(fields: [supplierId], references: [id])
-  productDiscounts ProductDiscount[]
+  orderItems       OrderItem[]
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  shop             Shop            @relation(fields: [shopId], references: [id])
+  subCategory      SubCategory?    @relation(fields: [subCategoryId], references: [id])
+  subSubCategory   SubSubCategory? @relation(fields: [subSubCategoryId], references: [id])
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id])
 
   @@index([shopId])
   @@index([supplierId])
@@ -117,45 +119,17 @@ model Product {
   @@map("products")
 }
 
-model Discount {
-  id               String            @id @default(uuid())
-  title            String
-  description      String?
-  status           ProductStatus     @default(ACTIVE)
-  startDate        DateTime          @map("start_date")
-  endDate          DateTime          @map("end_date")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  productDiscounts ProductDiscount[]
-
-  @@map("discounts")
-}
-
-model ProductDiscount {
-  id         String   @id @default(uuid())
-  product    Product  @relation(fields: [productId], references: [id])
-  productId  String   @map("product_id")
-  discount   Discount @relation(fields: [discountId], references: [id])
-  discountId String   @map("discount_id")
-  percentage Float // e.g. 30.0 for 30% off
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@unique([productId, discountId])
-  @@map("product_discounts")
-}
-
 model Item {
-  id             String    @id @default(uuid())
-  barcode        String    @unique
-  broughtPrice   Float     @map("brought_price")
-  sellPrice      Float     @map("sell_price")
-  warrantyPeriod DateTime? @map("warranty_period")
-  productId      String    @map("product_id")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  product        Product   @relation(fields: [productId], references: [id])
+  id             String      @id @default(uuid())
+  barcode        String      @unique
+  broughtPrice   Float       @map("brought_price")
+  sellPrice      Float       @map("sell_price")
+  warrantyPeriod DateTime?   @map("warranty_period")
+  productId      String      @map("product_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  product        Product     @relation(fields: [productId], references: [id])
+  orderItems     OrderItem[]
 
   @@index([productId])
   @@map("items")
@@ -227,6 +201,98 @@ model Otp {
   @@map("otps")
 }
 
+model Order {
+  id           String       @id @default(uuid())
+  orderNumber  String       @unique @map("order_number")
+  shopId       String       @map("shop_id")
+  customerId   String?      @map("customer_id")
+  status       OrderStatus  @default(PENDING)
+  subtotal     Float
+  discount     Float        @default(0)
+  discountType DiscountType @default(FIXED) @map("discount_type")
+  total        Float
+  paid         Float
+  paymentDue   Float        @default(0) @map("payment_due")
+  note         String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  orderItems   OrderItem[]
+  customer     User?        @relation(fields: [customerId], references: [id])
+  shop         Shop         @relation(fields: [shopId], references: [id])
+  payments     Payment[]
+
+  @@index([shopId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String   @id @default(uuid())
+  orderId       String   @map("order_id")
+  productId     String   @map("product_id")
+  itemId        String   @map("item_id")
+  quantity      Int      @default(1)
+  originalPrice Float    @map("original_price")
+  sellingPrice  Float    @map("selling_price")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  item          Item     @relation(fields: [itemId], references: [id])
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([itemId])
+  @@map("order_items")
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  orderId   String        @map("order_id")
+  amount    Float
+  method    PaymentMethod
+  reference String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([method])
+  @@map("payments")
+}
+
+model CustomerWallet {
+  customerId    String   @map("customer_id")
+  shopId        String   @map("shop_id")
+  balance       String   @default("0")
+  loyaltyPoints String   @default("0") @map("loyalty_points")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  customer      User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, shopId])
+  @@index([customerId])
+  @@index([shopId])
+  @@map("customer_wallets")
+}
+
+model ShopBalance {
+  id          String   @id @default(uuid())
+  shopId      String   @unique @map("shop_id")
+  cashBalance String   @default("0") @map("cash_balance")
+  cardBalance String   @default("0") @map("card_balance")
+  bankBalance String   @default("0") @map("bank_balance")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@map("shop_balances")
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -244,4 +310,23 @@ enum Role {
   SHOP_STAFF
   CUSTOMER
   SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK
+  WALLET
 }
