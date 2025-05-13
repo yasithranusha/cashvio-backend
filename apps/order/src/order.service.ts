@@ -235,9 +235,12 @@ export class OrderService {
         await this.prisma.shopBalance.create({
           data: {
             shopId,
-            cashBalance: paymentMethod === PaymentMethod.CASH ? amount : 0,
-            cardBalance: paymentMethod === PaymentMethod.CARD ? amount : 0,
-            bankBalance: paymentMethod === PaymentMethod.BANK ? amount : 0,
+            cashBalance:
+              paymentMethod === PaymentMethod.CASH ? amount.toString() : '0',
+            cardBalance:
+              paymentMethod === PaymentMethod.CARD ? amount.toString() : '0',
+            bankBalance:
+              paymentMethod === PaymentMethod.BANK ? amount.toString() : '0',
           },
         });
         return;
@@ -246,21 +249,24 @@ export class OrderService {
       // Update existing shop balance
       switch (paymentMethod) {
         case PaymentMethod.CASH:
+          const cashBalance = parseFloat(shopBalance.cashBalance) + amount;
           await this.prisma.shopBalance.update({
             where: { shopId },
-            data: { cashBalance: { increment: amount } },
+            data: { cashBalance: cashBalance.toString() },
           });
           break;
         case PaymentMethod.CARD:
+          const cardBalance = parseFloat(shopBalance.cardBalance) + amount;
           await this.prisma.shopBalance.update({
             where: { shopId },
-            data: { cardBalance: { increment: amount } },
+            data: { cardBalance: cardBalance.toString() },
           });
           break;
         case PaymentMethod.BANK:
+          const bankBalance = parseFloat(shopBalance.bankBalance) + amount;
           await this.prisma.shopBalance.update({
             where: { shopId },
-            data: { bankBalance: { increment: amount } },
+            data: { bankBalance: bankBalance.toString() },
           });
           break;
       }
@@ -292,14 +298,17 @@ export class OrderService {
           data: {
             customerId,
             shopId,
-            balance: amount,
-            loyaltyPoints,
+            balance: amount.toString(),
+            loyaltyPoints: loyaltyPoints.toString(),
           },
         });
         return;
       }
 
       // Update existing wallet
+      const newBalance = parseFloat(wallet.balance) + amount;
+      const newLoyaltyPoints = parseInt(wallet.loyaltyPoints) + loyaltyPoints;
+
       await this.prisma.customerWallet.update({
         where: {
           customerId_shopId: {
@@ -308,8 +317,8 @@ export class OrderService {
           },
         },
         data: {
-          balance: { increment: amount },
-          loyaltyPoints: { increment: loyaltyPoints },
+          balance: newBalance.toString(),
+          loyaltyPoints: newLoyaltyPoints.toString(),
         },
       });
     } catch (error) {
@@ -332,7 +341,7 @@ export class OrderService {
         },
       });
 
-      return wallet?.balance || 0;
+      return wallet ? parseFloat(wallet.balance) : 0;
     } catch (error) {
       this.logger.error('Error fetching customer wallet balance:', error);
       return 0;
@@ -553,10 +562,13 @@ export class OrderService {
             // If using duePaidAmount, only adjust by that amount
             // Otherwise clear the balance completely
             if (createOrderDto.duePaidAmount !== undefined) {
+              // Calculate new balance - can't go above 0 if it was negative
+              const currentBalance = parseFloat(wallet.balance);
               const newBalance = Math.min(
                 0,
-                wallet.balance + createOrderDto.duePaidAmount,
+                currentBalance + createOrderDto.duePaidAmount,
               );
+
               await tx.customerWallet.update({
                 where: {
                   customerId_shopId: {
@@ -565,7 +577,7 @@ export class OrderService {
                   },
                 },
                 data: {
-                  balance: newBalance,
+                  balance: newBalance.toString(),
                 },
               });
             } else {
@@ -578,7 +590,7 @@ export class OrderService {
                   },
                 },
                 data: {
-                  balance: 0,
+                  balance: '0',
                 },
               });
             }
