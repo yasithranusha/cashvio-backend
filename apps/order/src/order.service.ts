@@ -6,18 +6,13 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '@app/common/database/prisma.service';
-import {
-  CreateOrderDto,
-  OrderQueryDto,
-  DiscountType,
-  PaymentMethod,
-} from './dto';
+import { CreateOrderDto, OrderQueryDto, DiscountType } from './dto';
 import { OrderStatus } from './dto/order-query.dto';
 import * as crypto from 'crypto';
 import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { KMS } from '@aws-sdk/client-kms';
-import { Role } from '@prisma/client';
+import { PaymentMethod, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -323,6 +318,27 @@ export class OrderService {
     }
   }
 
+  async getCustomerWalletBalance(
+    customerId: string,
+    shopId: string,
+  ): Promise<number> {
+    try {
+      const wallet = await this.prisma.customerWallet.findUnique({
+        where: {
+          customerId_shopId: {
+            customerId,
+            shopId,
+          },
+        },
+      });
+
+      return wallet?.balance || 0;
+    } catch (error) {
+      this.logger.error('Error fetching customer wallet balance:', error);
+      return 0;
+    }
+  }
+
   async createOrder(
     userId: string,
     createOrderDto: CreateOrderDto,
@@ -345,7 +361,11 @@ export class OrderService {
       });
     }
 
-    // Validate the items exist
+    // Calculate the total ourselves instead of trusting the client
+    let subtotal = 0;
+    const orderItemsData = [];
+
+    // Fetch and validate all items first
     for (const orderItem of createOrderDto.items) {
       const product = await this.prisma.product.findUnique({
         where: { id: orderItem.productId },
@@ -357,6 +377,7 @@ export class OrderService {
         );
       }
 
+      let itemSubtotal = 0;
       for (const barcode of orderItem.barcodes) {
         const item = await this.prisma.item.findUnique({
           where: { barcode },
@@ -371,7 +392,22 @@ export class OrderService {
             `Item with barcode ${barcode} does not belong to product ${orderItem.productId}`,
           );
         }
+
+        // Calculate price for this item
+        const itemPrice = orderItem.customPrice || item.sellPrice;
+        itemSubtotal += itemPrice;
+
+        orderItemsData.push({
+          id: crypto.randomUUID(),
+          productId: orderItem.productId,
+          itemId: item.id,
+          quantity: 1,
+          originalPrice: item.sellPrice,
+          sellingPrice: orderItem.customPrice || item.sellPrice,
+        });
       }
+
+      subtotal += itemSubtotal;
     }
 
     // Generate unique order number
@@ -379,17 +415,16 @@ export class OrderService {
 
     // Calculate discount
     let discount = createOrderDto.discount || 0;
-    const total = createOrderDto.total;
 
     if (
       createOrderDto.discountType === DiscountType.PERCENTAGE &&
       discount > 0
     ) {
-      discount = (total * discount) / 100;
+      discount = (subtotal * discount) / 100;
     }
 
     // Calculate the final total with discount
-    const finalTotal = total - discount;
+    const finalTotal = subtotal - discount;
 
     // Calculate total payment amount
     const totalPayment = createOrderDto.payments.reduce(
@@ -397,15 +432,50 @@ export class OrderService {
       0,
     );
 
+    // Check for payment due
+    let paymentDue = 0;
+    let useWalletToPayDue = false;
+
+    if (customerId) {
+      // If a custom due amount is specified, use that
+      if (createOrderDto.customDueAmount !== undefined) {
+        paymentDue = createOrderDto.customDueAmount;
+        useWalletToPayDue = true;
+      } else {
+        // Otherwise check if customer has payment due (negative wallet balance)
+        const walletBalance = await this.getCustomerWalletBalance(
+          customerId,
+          shopId,
+        );
+
+        if (walletBalance < 0) {
+          // Only include payment due if duePaidAmount is specified
+          if (createOrderDto.duePaidAmount !== undefined) {
+            paymentDue = Math.min(
+              Math.abs(walletBalance),
+              createOrderDto.duePaidAmount,
+            );
+            useWalletToPayDue = true;
+          }
+        }
+      }
+    }
+
     // Check if payment is sufficient
-    if (totalPayment < finalTotal) {
+    const totalWithDue = finalTotal + paymentDue;
+    if (totalPayment < totalWithDue) {
       throw new BadRequestException(
-        `Total payment (${totalPayment}) is less than order total (${finalTotal})`,
+        `Total payment (${totalPayment}) is less than order total plus dues (${totalWithDue})`,
       );
     }
 
-    // Check for extra payment to wallet
-    const extraPayment = totalPayment - finalTotal;
+    // Calculate extra payment amount
+    // If extraWalletAmount is specified, use that exact amount
+    // Otherwise use any excess payment
+    const extraPayment =
+      createOrderDto.extraWalletAmount !== undefined
+        ? createOrderDto.extraWalletAmount
+        : totalPayment - totalWithDue;
 
     try {
       // Use a single transaction for everything
@@ -413,25 +483,9 @@ export class OrderService {
         // Create the order
         const orderId = crypto.randomUUID();
 
-        // Prepare order item data
-        const orderItemsData = [];
-        for (const orderItem of createOrderDto.items) {
-          for (const barcode of orderItem.barcodes) {
-            const item = await this.prisma.item.findUnique({
-              where: { barcode },
-              select: { id: true, sellPrice: true },
-            });
-
-            orderItemsData.push({
-              id: crypto.randomUUID(),
-              orderId,
-              productId: orderItem.productId,
-              itemId: item.id,
-              quantity: 1,
-              originalPrice: item.sellPrice,
-              sellingPrice: orderItem.customPrice || item.sellPrice,
-            });
-          }
+        // Update order items with orderId
+        for (const itemData of orderItemsData) {
+          itemData.orderId = orderId;
         }
 
         // Prepare payments data
@@ -443,7 +497,7 @@ export class OrderService {
           reference: payment.reference || null,
         }));
 
-        // Create order - remove await and capture result directly when needed
+        // Create order
         await tx.order.create({
           data: {
             id: orderId,
@@ -451,7 +505,7 @@ export class OrderService {
             shopId,
             customerId,
             status: OrderStatus.COMPLETED,
-            subtotal: total,
+            subtotal,
             discount,
             discountType: createOrderDto.discountType || DiscountType.FIXED,
             total: finalTotal,
@@ -460,7 +514,7 @@ export class OrderService {
           },
         });
 
-        // Create order items (one by one to handle barcode logic)
+        // Create order items
         for (const itemData of orderItemsData) {
           await tx.orderItem.create({
             data: itemData,
@@ -475,57 +529,17 @@ export class OrderService {
 
           // Update shop balance for non-wallet payments
           if (paymentData.method !== PaymentMethod.WALLET) {
-            const shopBalance = await tx.shopBalance.findUnique({
-              where: { shopId },
-            });
-
-            if (!shopBalance) {
-              // Create new shop balance
-              await tx.shopBalance.create({
-                data: {
-                  shopId,
-                  cashBalance:
-                    paymentData.method === PaymentMethod.CASH
-                      ? paymentData.amount
-                      : 0,
-                  cardBalance:
-                    paymentData.method === PaymentMethod.CARD
-                      ? paymentData.amount
-                      : 0,
-                  bankBalance:
-                    paymentData.method === PaymentMethod.BANK
-                      ? paymentData.amount
-                      : 0,
-                },
-              });
-            } else {
-              // Update existing shop balance
-              if (paymentData.method === PaymentMethod.CASH) {
-                await tx.shopBalance.update({
-                  where: { shopId },
-                  data: { cashBalance: { increment: paymentData.amount } },
-                });
-              } else if (paymentData.method === PaymentMethod.CARD) {
-                await tx.shopBalance.update({
-                  where: { shopId },
-                  data: { cardBalance: { increment: paymentData.amount } },
-                });
-              } else if (paymentData.method === PaymentMethod.BANK) {
-                await tx.shopBalance.update({
-                  where: { shopId },
-                  data: { bankBalance: { increment: paymentData.amount } },
-                });
-              }
-            }
+            await this.updateShopBalance(
+              shopId,
+              paymentData.method,
+              paymentData.amount,
+            );
           }
         }
 
-        // Add extra payment to wallet if requested and customer exists
-        if (
-          extraPayment > 0 &&
-          customerId &&
-          createOrderDto.storeExtraInWallet
-        ) {
+        // Handle payment due
+        if (useWalletToPayDue && customerId) {
+          // Only adjust the wallet balance by the amount due being paid
           const wallet = await tx.customerWallet.findUnique({
             where: {
               customerId_shopId: {
@@ -535,28 +549,50 @@ export class OrderService {
             },
           });
 
-          if (!wallet) {
-            await tx.customerWallet.create({
-              data: {
-                customerId,
-                shopId,
-                balance: extraPayment,
-                loyaltyPoints: 0,
-              },
-            });
-          } else {
-            await tx.customerWallet.update({
-              where: {
-                customerId_shopId: {
-                  customerId,
-                  shopId,
+          if (wallet) {
+            // If using duePaidAmount, only adjust by that amount
+            // Otherwise clear the balance completely
+            if (createOrderDto.duePaidAmount !== undefined) {
+              const newBalance = Math.min(
+                0,
+                wallet.balance + createOrderDto.duePaidAmount,
+              );
+              await tx.customerWallet.update({
+                where: {
+                  customerId_shopId: {
+                    customerId,
+                    shopId,
+                  },
                 },
-              },
-              data: {
-                balance: { increment: extraPayment },
-              },
-            });
+                data: {
+                  balance: newBalance,
+                },
+              });
+            } else {
+              // Clear the payment due by setting wallet balance to 0
+              await tx.customerWallet.update({
+                where: {
+                  customerId_shopId: {
+                    customerId,
+                    shopId,
+                  },
+                },
+                data: {
+                  balance: 0,
+                },
+              });
+            }
           }
+        }
+
+        // Add extra payment to wallet if requested and customer exists
+        if (
+          extraPayment > 0 &&
+          customerId &&
+          (createOrderDto.storeExtraInWallet ||
+            createOrderDto.extraWalletAmount !== undefined)
+        ) {
+          await this.updateCustomerWallet(customerId, shopId, extraPayment, 0);
         }
 
         // Get the complete order with all relations

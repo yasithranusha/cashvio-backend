@@ -7,22 +7,17 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsEmail,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaymentMethod } from '@prisma/client';
 
 // Enum definitions to replace imports from @prisma/client
 export enum DiscountType {
   PERCENTAGE = 'PERCENTAGE',
   FIXED = 'FIXED',
-}
-
-export enum PaymentMethod {
-  CASH = 'CASH',
-  CARD = 'CARD',
-  BANK = 'BANK',
-  WALLET = 'WALLET',
 }
 
 export class OrderItemDto {
@@ -54,25 +49,25 @@ export class PaymentDto {
 }
 
 export class CreateOrderDto {
-  @IsUUID()
   @IsOptional()
+  @IsString()
+  shopId?: string;
+
+  @IsOptional()
+  @IsString()
   customerId?: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   customerName?: string;
 
-  @IsString()
   @IsOptional()
+  @IsEmail()
   customerEmail?: string;
 
+  @IsOptional()
   @IsString()
-  @IsOptional()
   customerPhone?: string;
-
-  @IsUUID()
-  @IsOptional()
-  shopId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -80,11 +75,6 @@ export class CreateOrderDto {
   items: OrderItemDto[];
 
   @IsNumber()
-  @Min(0)
-  total: number;
-
-  @IsNumber()
-  @Min(0)
   @IsOptional()
   discount?: number;
 
@@ -104,4 +94,19 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   note?: string;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  customDueAmount?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  duePaidAmount?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  extraWalletAmount?: number;
 }

@@ -212,6 +212,7 @@ model Order {
   discountType    DiscountType     @default(FIXED) @map("discount_type")
   total           Float
   paid            Float
+  paymentDue      Float            @default(0) @map("payment_due")
   note            String?
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
@@ -265,8 +266,8 @@ model Payment {
 model CustomerWallet {
   customerId      String           @map("customer_id")
   shopId          String           @map("shop_id")
-  balance         Float            @default(0)
-  loyaltyPoints   Int              @default(0) @map("loyalty_points")
+  balance         String           @default("0")
+  loyaltyPoints   String           @default("0") @map("loyalty_points")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   customer        User             @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -281,9 +282,9 @@ model CustomerWallet {
 model ShopBalance {
   id              String           @id @default(uuid())
   shopId          String           @unique @map("shop_id")
-  cashBalance     Float            @default(0) @map("cash_balance")
-  cardBalance     Float            @default(0) @map("card_balance")
-  bankBalance     Float            @default(0) @map("bank_balance")
+  cashBalance     String           @default("0") @map("cash_balance")
+  cardBalance     String           @default("0") @map("card_balance")
+  bankBalance     String           @default("0") @map("bank_balance")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
