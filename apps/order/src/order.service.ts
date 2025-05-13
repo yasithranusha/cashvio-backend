@@ -1,11 +1,9 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
 
 import { PrismaService } from '@app/common/database/prisma.service';
 import {
@@ -15,12 +13,12 @@ import {
   PaymentMethod,
 } from './dto';
 import { OrderStatus } from './dto/order-query.dto';
-import { lastValueFrom, timeout, catchError, of } from 'rxjs';
 import * as crypto from 'crypto';
 import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { KMS } from '@aws-sdk/client-kms';
 import { Role } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class OrderService {
@@ -32,7 +30,6 @@ export class OrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
   ) {
     this.kmsKeyId = this.configService.get<string>('AWS_KMS_KEY_ID');
     this.kmsKeyAlias = this.configService.get<string>('AWS_KMS_KEY_ALIAS');
@@ -119,33 +116,22 @@ export class OrderService {
       return customer.id;
     }
 
-    // Create new customer
+    // Create new customer directly with Prisma
     try {
       const password = randomBytes(10).toString('hex');
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-      const newCustomer = await lastValueFrom(
-        this.authClient
-          .send('create_customer', {
-            name: customerData.name || 'Guest Customer',
-            email: customerData.email || `guest_${Date.now()}@cashvio.com`,
-            password,
-            contactNumber: customerData.phone,
-            role: Role.CUSTOMER,
-          })
-          .pipe(
-            timeout(5000),
-            catchError((error) => {
-              this.logger.error('Failed to create customer:', error);
-              return of(null);
-            }),
-          ),
-      );
+      const newCustomer = await this.prisma.user.create({
+        data: {
+          name: customerData.name || 'Guest Customer',
+          email: customerData.email || `guest_${Date.now()}@cashvio.com`,
+          password: hashedPassword,
+          contactNumber: customerData.phone,
+          role: Role.CUSTOMER,
+        },
+      });
 
-      if (newCustomer) {
-        return newCustomer.id;
-      }
-
-      return null;
+      return newCustomer.id;
     } catch (error) {
       this.logger.error('Error creating customer:', error);
       return null;
