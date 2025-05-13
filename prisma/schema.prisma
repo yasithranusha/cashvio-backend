@@ -37,6 +37,7 @@ model User {
 model Shop {
   id              String           @id @default(uuid())
   businessName    String           @map("business_name")
+  shopCategory    String?          @map("shop_category")
   address         String
   shopLogo        String?          @map("shop_logo")
   shopBanner      String?          @map("shop_banner")
@@ -88,27 +89,30 @@ model Supplier {
 }
 
 model Product {
-  id               String          @id @default(uuid())
+  id               String            @id @default(uuid())
   name             String
   description      String?
-  shopId           String          @map("shop_id")
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
-  displayName      String?         @map("display_name")
-  imageUrls        String[]        @map("image_urls")
-  keepingUnits     Int             @map("keeping_units")
-  supplierId       String?         @map("supplier_id")
-  categoryId       String?         @map("category_id")
-  subCategoryId    String?         @map("sub_category_id")
-  subSubCategoryId String?         @map("sub_sub_category_id")
-  status           ProductStatus   @default(ACTIVE)
+  shopId           String            @map("shop_id")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  displayName      String?           @map("display_name")
+  imageUrls        String[]          @map("image_urls")
+  keepingUnits     Int               @map("keeping_units")
+  warrantyMonths   Int?              @map("warranty_months")
+  loyaltyPoints    Int?              @map("loyalty_points")
+  supplierId       String?           @map("supplier_id")
+  categoryId       String?           @map("category_id")
+  subCategoryId    String?           @map("sub_category_id")
+  subSubCategoryId String?           @map("sub_sub_category_id")
+  status           ProductStatus     @default(ACTIVE)
   items            Item[]
   orderItems       OrderItem[]
-  category         Category?       @relation(fields: [categoryId], references: [id])
-  shop             Shop            @relation(fields: [shopId], references: [id])
-  subCategory      SubCategory?    @relation(fields: [subCategoryId], references: [id])
-  subSubCategory   SubSubCategory? @relation(fields: [subSubCategoryId], references: [id])
-  supplier         Supplier?       @relation(fields: [supplierId], references: [id])
+  productDiscounts ProductDiscount[]
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  shop             Shop              @relation(fields: [shopId], references: [id])
+  subCategory      SubCategory?      @relation(fields: [subCategoryId], references: [id])
+  subSubCategory   SubSubCategory?   @relation(fields: [subSubCategoryId], references: [id])
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id])
 
   @@index([shopId])
   @@index([supplierId])
@@ -117,6 +121,34 @@ model Product {
   @@index([subCategoryId])
   @@index([subSubCategoryId])
   @@map("products")
+}
+
+model Discount {
+  id               String            @id @default(uuid())
+  title            String
+  description      String?
+  status           ProductStatus     @default(ACTIVE)
+  startDate        DateTime          @map("start_date")
+  endDate          DateTime          @map("end_date")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  productDiscounts ProductDiscount[]
+
+  @@map("discounts")
+}
+
+model ProductDiscount {
+  id         String   @id @default(uuid())
+  productId  String   @map("product_id")
+  discountId String   @map("discount_id")
+  percentage Float // e.g. 30.0 for 30% off
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  product    Product  @relation(fields: [productId], references: [id])
+  discount   Discount @relation(fields: [discountId], references: [id])
+
+  @@unique([productId, discountId])
+  @@map("product_discounts")
 }
 
 model Item {
