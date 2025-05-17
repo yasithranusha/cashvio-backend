@@ -46,7 +46,7 @@ If AWS KMS is not configured or unavailable, the system will automatically fall 
 
 - Uses AES-256-CBC encryption
 - Generates random keys and initialization vectors for each value
-- Stores the encrypted data with format: `fallback:{iv}:{key}:{encrypted}`
+- Stores the encrypted data with format: `fb:{iv}:{key}:{encrypted}`
 
 This fallback ensures the application continues to function even without AWS KMS, though with slightly reduced security.
 

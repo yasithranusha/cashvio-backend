@@ -208,7 +208,7 @@ export class OrderService implements OnModuleInit {
   /**
    * Local encryption fallback using AES-256-CBC
    * @param text Data to encrypt
-   * @returns Encrypted data with format: fallback:{iv}:{key}:{encrypted}
+   * @returns Encrypted data with format: fb:{iv}:{key}:{encrypted}
    */
   private encryptLocal(text: string): string {
     try {
@@ -219,7 +219,7 @@ export class OrderService implements OnModuleInit {
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
 
-      return `fallback:${iv.toString('hex')}:${key.toString('hex')}:${encrypted}`;
+      return `fb:${iv.toString('hex')}:${key.toString('hex')}:${encrypted}`;
     } catch (error) {
       this.logger.error('Local encryption error:', error);
       // If all encryption fails, return the original text
@@ -240,14 +240,14 @@ export class OrderService implements OnModuleInit {
 
     // If no KMS key is configured or data isn't encrypted, return as is
     if ((!this.kmsKeyId && !this.kmsKeyAlias) || encryptedText === '0') {
-      if (!encryptedText.startsWith('fallback:')) {
+      if (!encryptedText.startsWith('fb:')) {
         return encryptedText;
       }
     }
 
     try {
       // Handle fallback encryption
-      if (encryptedText.startsWith('fallback:')) {
+      if (encryptedText.startsWith('fb:')) {
         return this.decryptLocal(encryptedText);
       }
 
@@ -267,7 +267,7 @@ export class OrderService implements OnModuleInit {
       this.logger.error('Decryption error:', error);
 
       // If it's a fallback encrypted value, try to decrypt it locally
-      if (encryptedText.startsWith('fallback:')) {
+      if (encryptedText.startsWith('fb:')) {
         return this.decryptLocal(encryptedText);
       }
 
@@ -277,7 +277,7 @@ export class OrderService implements OnModuleInit {
 
   /**
    * Local decryption for fallback encrypted data
-   * @param encryptedText Encrypted data with format: fallback:{iv}:{key}:{encrypted}
+   * @param encryptedText Encrypted data with format: fb:{iv}:{key}:{encrypted}
    * @returns Decrypted data
    */
   private decryptLocal(encryptedText: string): string {

@@ -95,7 +95,7 @@ If AWS KMS is unavailable or not configured, the system falls back to local encr
 
 1. A random 256-bit key and 128-bit initialization vector are generated
 2. AES-256-CBC encryption is used
-3. The encrypted data is stored with the format: `fallback:{iv}:{key}:{encrypted_data}`
+3. The encrypted data is stored with the format: `fb:{iv}:{key}:{encrypted_data}`
 
 This ensures the system can continue to function even if AWS KMS is temporarily unavailable, though with a slightly reduced security level.
 
