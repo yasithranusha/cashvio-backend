@@ -4,6 +4,8 @@ import {
   Logger,
   NotFoundException,
   OnModuleInit,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 
 import { PrismaService } from '@app/common/database/prisma.service';
@@ -14,6 +16,13 @@ import { ConfigService } from '@nestjs/config';
 import { KMS } from '@aws-sdk/client-kms';
 import { PaymentMethod, Role, OrderStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { ClientProxy } from '@nestjs/microservices';
+import { MAILER_SERVICE } from './constants/services';
+import { orderReceiptMail } from './mail-templates/receipt';
+import { lastValueFrom } from 'rxjs';
+import { setImmediate } from 'timers';
+import { ReceiptPdfService } from './pdf/receipt-pdf.service';
+import { RmqService } from '@app/common/rmq/rmq.service';
 
 @Injectable()
 export class OrderService implements OnModuleInit {
@@ -24,7 +33,11 @@ export class OrderService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly rmqService: RmqService,
     private readonly configService: ConfigService,
+    @Inject(MAILER_SERVICE) private readonly mailerClient: ClientProxy,
+    @Inject(forwardRef(() => ReceiptPdfService))
+    private readonly receiptPdfService: ReceiptPdfService,
   ) {
     // Debug logging to check environment variables
     this.logger.debug('AWS Configuration:');
@@ -595,9 +608,6 @@ export class OrderService implements OnModuleInit {
       subtotal += itemSubtotal;
     }
 
-    // Generate unique order number
-    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
     // Calculate discount
     let discount = createOrderDto.discount || 0;
 
@@ -663,8 +673,6 @@ export class OrderService implements OnModuleInit {
     }
 
     // Calculate extra payment amount
-    // If extraWalletAmount is specified, use that exact amount
-    // Otherwise use any excess payment
     const extraPayment =
       createOrderDto.extraWalletAmount !== undefined
         ? createOrderDto.extraWalletAmount
@@ -673,81 +681,89 @@ export class OrderService implements OnModuleInit {
           : 0;
 
     try {
-      // Pre-encrypt data outside of the transaction to reduce transaction time
-      const orderData = await this.prepareOrderData({
-        id: crypto.randomUUID(),
-        orderNumber,
-        shopId,
-        customerId,
-        status: orderStatus,
-        subtotal,
-        discount,
-        discountType: createOrderDto.discountType || DiscountType.FIXED,
-        total: finalTotal,
-        paid: totalPayment,
-        paymentDue,
-        note: createOrderDto.note,
-      });
-
-      // Pre-encrypt order items data
-      const preparedOrderItems = await Promise.all(
-        orderItemsData.map(async (item) => {
-          item.orderId = orderData.id;
-          return await this.prepareOrderItemData(item);
-        }),
-      );
-
-      // Pre-encrypt payments data
-      const paymentsData = createOrderDto.payments.map((payment) => ({
-        id: crypto.randomUUID(),
-        orderId: orderData.id,
-        amount: payment.amount,
-        method: payment.method,
-        reference: payment.reference || null,
-      }));
-
-      const preparedPayments = await Promise.all(
-        paymentsData.map(
-          async (payment) => await this.preparePaymentData(payment),
+      // Pre-encrypt all the data we'll need
+      const encryptedData = await Promise.all([
+        this.encrypt(discount.toString()),
+        this.encrypt(subtotal.toString()),
+        this.encrypt(finalTotal.toString()),
+        this.encrypt(totalPayment.toString()),
+        this.encrypt(paymentDue.toString()),
+        ...orderItemsData.map((item) =>
+          Promise.all([
+            this.encrypt(item.originalPrice.toString()),
+            this.encrypt(item.sellingPrice.toString()),
+          ]),
         ),
-      );
+        ...createOrderDto.payments.map((payment) =>
+          this.encrypt(payment.amount.toString()),
+        ),
+      ]);
 
-      // Use a single transaction with increased timeout for everything
-      return await this.prisma.$transaction(
+      const [
+        encryptedDiscount,
+        encryptedSubtotal,
+        encryptedTotal,
+        encryptedPaid,
+        encryptedPaymentDue,
+        ...rest
+      ] = encryptedData;
+
+      const encryptedOrderItems = rest.slice(0, orderItemsData.length);
+      const encryptedPayments = rest.slice(orderItemsData.length) as string[];
+
+      const result = await this.prisma.$transaction(
         async (tx) => {
           // Create order
-          await tx.order.create({
-            data: orderData,
+          const order = await tx.order.create({
+            data: {
+              shopId,
+              customerId,
+              discount: encryptedDiscount,
+              discountType: createOrderDto.discountType || DiscountType.FIXED,
+              note: createOrderDto.note,
+              status: createOrderDto.draft
+                ? OrderStatus.DRAFT
+                : OrderStatus.COMPLETED,
+              subtotal: encryptedSubtotal,
+              total: encryptedTotal,
+              paid: encryptedPaid,
+              paymentDue: encryptedPaymentDue,
+              orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              orderItems: {
+                create: orderItemsData.map((item, index) => ({
+                  id: crypto.randomUUID(),
+                  productId: item.productId,
+                  itemId: item.itemId,
+                  quantity: item.quantity,
+                  originalPrice: encryptedOrderItems[index][0],
+                  sellingPrice: encryptedOrderItems[index][1],
+                })),
+              },
+              payments: {
+                create: createOrderDto.payments.map((payment, index) => ({
+                  id: crypto.randomUUID(),
+                  amount: encryptedPayments[index],
+                  method: payment.method,
+                  reference: payment.reference || null,
+                })),
+              },
+            },
+            include: {
+              orderItems: {
+                include: {
+                  product: true,
+                },
+              },
+              payments: true,
+              customer: true,
+              shop: true,
+            },
           });
 
-          // Create order items
-          for (const itemData of preparedOrderItems) {
-            await tx.orderItem.create({
-              data: itemData,
-            });
-          }
-
           // For completed orders, process payments and delete items
-          if (orderStatus === OrderStatus.COMPLETED) {
-            // Create payments
-            for (const paymentData of preparedPayments) {
-              await tx.payment.create({
-                data: paymentData,
-              });
-
-              // Update shop balance for non-wallet payments
-              if (paymentData.method !== PaymentMethod.WALLET) {
-                await this.updateShopBalance(
-                  shopId,
-                  paymentData.method,
-                  paymentData.amount,
-                );
-              }
-            }
-
+          if (order.status === OrderStatus.COMPLETED) {
             // Handle payment due
             if (useWalletToPayDue && customerId) {
-              // Only adjust the wallet balance by the amount due being paid
               const wallet = await tx.customerWallet.findUnique({
                 where: {
                   customerId_shopId: {
@@ -758,10 +774,7 @@ export class OrderService implements OnModuleInit {
               });
 
               if (wallet) {
-                // If using duePaidAmount, only adjust by that amount
-                // Otherwise clear the balance completely
                 if (createOrderDto.duePaidAmount !== undefined) {
-                  // Calculate new balance - can't go above 0 if it was negative
                   const currentBalance = await this.decrypt(wallet.balance);
                   const parsedBalance = parseFloat(currentBalance);
                   const newBalance = Math.min(
@@ -784,7 +797,6 @@ export class OrderService implements OnModuleInit {
                     },
                   });
                 } else {
-                  // Clear the payment due by setting wallet balance to 0
                   const encryptedZero = await this.encrypt('0');
                   await tx.customerWallet.update({
                     where: {
@@ -817,39 +829,118 @@ export class OrderService implements OnModuleInit {
             }
           }
 
-          // Get the complete order with all relations
-          const completedOrder = await tx.order.findUnique({
-            where: { id: orderData.id },
-            include: {
-              customer: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  contactNumber: true,
-                },
-              },
-              orderItems: {
-                include: {
-                  product: {
-                    select: {
-                      name: true,
-                      imageUrls: true,
-                    },
-                  },
-                },
-              },
-              payments: true,
-            },
-          });
-
-          return completedOrder;
+          return order;
         },
         {
-          // Increase transaction timeout to 30 seconds to accommodate encryption operations
-          timeout: 30000,
+          timeout: 30000, // Increase timeout to 30 seconds
         },
       );
+
+      // Get the complete order with all relations after transaction
+      const completedOrder = await this.prisma.order.findUnique({
+        where: { id: result.id },
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              contactNumber: true,
+            },
+          },
+          orderItems: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  imageUrls: true,
+                },
+              },
+            },
+          },
+          payments: true,
+          shop: {
+            select: {
+              id: true,
+              businessName: true,
+            },
+          },
+        },
+      });
+
+      // Send email receipt for non-draft orders with customers if requested
+      if (
+        !createOrderDto.draft &&
+        customerId &&
+        createOrderDto.sendReceiptEmail &&
+        (completedOrder as any).customer?.email
+      ) {
+        this.logger.debug('Attempting to send receipt email...');
+        this.logger.debug(
+          'Order data:',
+          JSON.stringify(completedOrder, null, 2),
+        );
+        this.logger.debug(
+          'Shop data:',
+          JSON.stringify(
+            {
+              id: (completedOrder as any).shop.id,
+              businessName: (completedOrder as any).shop.businessName,
+            },
+            null,
+            2,
+          ),
+        );
+
+        // Schedule email sending after transaction completes
+        setImmediate(() => {
+          void this.sendReceiptEmail(completedOrder as any, {
+            id: (completedOrder as any).shop.id,
+            businessName: (completedOrder as any).shop.businessName,
+          });
+        });
+      }
+
+      // Generate PDF if requested
+      let pdfBuffer: Buffer | null = null;
+      if (createOrderDto.print && !createOrderDto.draft) {
+        try {
+          this.logger.debug('Attempting to generate PDF...');
+          this.logger.debug(
+            'Order data:',
+            JSON.stringify(completedOrder, null, 2),
+          );
+          this.logger.debug(
+            'Shop data:',
+            JSON.stringify(
+              {
+                id: (completedOrder as any).shop.id,
+                businessName: (completedOrder as any).shop.businessName,
+              },
+              null,
+              2,
+            ),
+          );
+
+          pdfBuffer = await this.receiptPdfService.generateReceiptPdf(
+            completedOrder,
+            {
+              id: (completedOrder as any).shop.id,
+              businessName: (completedOrder as any).shop.businessName,
+            },
+          );
+          this.logger.debug('PDF generated successfully');
+        } catch (error) {
+          this.logger.error('Failed to generate PDF:', error);
+          this.logger.error('Error stack:', error.stack);
+        }
+      }
+
+      const decryptedOrder = await this.decryptOrderData(completedOrder);
+      return {
+        ...decryptedOrder,
+        pdf: pdfBuffer ? pdfBuffer.toString('base64') : null,
+      };
     } catch (error) {
       this.logger.error('Error creating order:', error);
       throw error;
@@ -1058,7 +1149,7 @@ export class OrderService implements OnModuleInit {
    * @param order Encrypted order data
    * @returns Order with decrypted financial fields
    */
-  private async decryptOrderData(order: any): Promise<any> {
+  public async decryptOrderData(order: any): Promise<any> {
     const decryptedOrder = { ...order };
 
     if (decryptedOrder.subtotal) {
@@ -1097,7 +1188,7 @@ export class OrderService implements OnModuleInit {
    * @param item Encrypted order item data
    * @returns Order item with decrypted financial fields
    */
-  private async decryptOrderItemData(item: any): Promise<any> {
+  public async decryptOrderItemData(item: any): Promise<any> {
     const decryptedItem = { ...item };
 
     if (decryptedItem.originalPrice) {
@@ -1120,7 +1211,7 @@ export class OrderService implements OnModuleInit {
    * @param payment Encrypted payment data
    * @returns Payment with decrypted financial fields
    */
-  private async decryptPaymentData(payment: any): Promise<any> {
+  public async decryptPaymentData(payment: any): Promise<any> {
     const decryptedPayment = { ...payment };
 
     if (decryptedPayment.amount) {
@@ -1375,14 +1466,28 @@ export class OrderService implements OnModuleInit {
       );
 
       // Use a transaction to update order status, process payments, and delete items
-      return await this.prisma.$transaction(
+      const result = await this.prisma.$transaction(
         async (tx) => {
           // Update order status to COMPLETED
-          await tx.order.update({
+          const updatedOrder = await tx.order.update({
             where: { id: orderId },
             data: {
               status: OrderStatus.COMPLETED,
-              paid: await this.encrypt(totalPayment.toString()),
+            },
+            include: {
+              orderItems: {
+                include: {
+                  product: true,
+                },
+              },
+              payments: true,
+              customer: true,
+              shop: {
+                select: {
+                  id: true,
+                  businessName: true,
+                },
+              },
             },
           });
 
@@ -1454,39 +1559,26 @@ export class OrderService implements OnModuleInit {
             );
           }
 
-          // Get the complete order with all relations
-          const completedOrder = await tx.order.findUnique({
-            where: { id: orderId },
-            include: {
-              customer: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  contactNumber: true,
-                },
-              },
-              orderItems: {
-                include: {
-                  product: {
-                    select: {
-                      name: true,
-                      imageUrls: true,
-                    },
-                  },
-                },
-              },
-              payments: true,
-            },
-          });
+          // Send receipt email if customer has email
+          if (updatedOrder.customer?.email) {
+            // Schedule email sending after transaction completes
+            setImmediate(() => {
+              void this.sendReceiptEmail(updatedOrder, {
+                id: updatedOrder.shop.id,
+                businessName: updatedOrder.shop.businessName,
+              });
+            });
+          }
 
-          return completedOrder;
+          return this.decryptOrderData(updatedOrder);
         },
         {
           // Increase transaction timeout to 30 seconds to accommodate encryption operations
           timeout: 30000,
         },
       );
+
+      return result;
     } catch (error) {
       this.logger.error('Error completing draft order:', error);
       throw error;
@@ -1540,7 +1632,7 @@ export class OrderService implements OnModuleInit {
       }
 
       // Use a transaction for all updates
-      return await this.prisma.$transaction(
+      const updatedOrder = await this.prisma.$transaction(
         async (tx) => {
           // If we're completing the draft, process as completion
           if (isCompletingDraft) {
@@ -1972,8 +2064,280 @@ export class OrderService implements OnModuleInit {
           timeout: 30000,
         },
       );
+
+      // If we completed a draft order, delete items from inventory after transaction completes
+      if (isCompletingDraft) {
+        await this.deleteItemsForCompletedOrder(orderId);
+      }
+
+      return updatedOrder;
     } catch (error) {
       this.logger.error('Error updating order:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete items from inventory after order completion
+   * This is called separately after the order transaction is complete
+   * to avoid foreign key constraint issues
+   * @param orderId Order ID
+   */
+  async deleteItemsForCompletedOrder(orderId: string): Promise<void> {
+    try {
+      // Get the item IDs from order items
+      const orderItems = await this.prisma.orderItem.findMany({
+        where: { orderId },
+        select: { itemId: true },
+      });
+
+      // Get all item IDs
+      const itemIds = orderItems
+        .map((item) => item.itemId)
+        .filter((id) => id !== null && id !== undefined);
+
+      if (itemIds.length === 0) {
+        return;
+      }
+
+      // Delete items directly
+      let deletedCount = 0;
+      for (const itemId of itemIds) {
+        try {
+          await this.prisma.item.delete({
+            where: { id: itemId },
+          });
+          deletedCount++;
+        } catch (error) {
+          this.logger.error(`Failed to delete item ${itemId}:`, error);
+          // Continue with other items even if one fails
+        }
+      }
+
+      this.logger.log(
+        `Successfully deleted ${deletedCount} items for order ${orderId}`,
+      );
+    } catch (error) {
+      this.logger.error(`Error deleting items for order ${orderId}:`, error);
+    }
+  }
+
+  /**
+   * Cleanup orphaned items that are no longer needed
+   * This can be called periodically to remove items that failed to delete during order completion
+   */
+  async cleanupOrphanedItems(): Promise<void> {
+    try {
+      // Get all completed orders
+      const completedOrders = await this.prisma.order.findMany({
+        where: { status: OrderStatus.COMPLETED },
+        select: { id: true },
+      });
+
+      const completedOrderIds = completedOrders.map((order) => order.id);
+
+      if (completedOrderIds.length === 0) {
+        return;
+      }
+
+      // Get all items referenced by completed orders
+      const orderItems = await this.prisma.orderItem.findMany({
+        where: { orderId: { in: completedOrderIds } },
+        select: { itemId: true },
+      });
+
+      const itemIds = orderItems
+        .map((item) => item.itemId)
+        .filter((id) => id !== null && id !== undefined);
+
+      if (itemIds.length === 0) {
+        return;
+      }
+
+      // Delete items directly
+      let deletedCount = 0;
+      for (const itemId of itemIds) {
+        try {
+          await this.prisma.item.delete({
+            where: { id: itemId },
+          });
+          deletedCount++;
+        } catch (error) {
+          this.logger.error(`Failed to delete item ${itemId}:`, error);
+          // Continue with other items even if one fails
+        }
+      }
+
+      this.logger.log(`Successfully cleaned up ${deletedCount} orphaned items`);
+    } catch (error) {
+      this.logger.error('Error cleaning up orphaned items:', error);
+    }
+  }
+
+  /**
+   * Sends an email receipt for a completed order
+   * @param order The complete order data with items and payments
+   * @param shop The shop data
+   * @returns void
+   */
+  async sendReceiptEmail(order: any, shop: any): Promise<void> {
+    try {
+      this.logger.debug('Starting to send receipt email...');
+      this.logger.debug('Order data:', JSON.stringify(order, null, 2));
+      this.logger.debug('Shop data:', JSON.stringify(shop, null, 2));
+
+      if (!order.customer?.email) {
+        this.logger.warn('No customer email found, skipping email send');
+        return;
+      }
+
+      // Decrypt order data
+      const decryptedOrder = await this.decryptOrderData(order);
+
+      // Format items for email
+      const formattedItems = await Promise.all(
+        order.orderItems.map(async (item) => {
+          const decryptedItem = await this.decryptOrderItemData(item);
+          const originalPrice = parseFloat(decryptedItem.originalPrice);
+          const sellingPrice = parseFloat(decryptedItem.sellingPrice);
+          const total = sellingPrice * item.quantity;
+          const saved = (originalPrice - sellingPrice) * item.quantity;
+
+          return `
+            <tr>
+              <td style="padding: 8px; text-align: left;">${item.product.name}</td>
+              <td style="padding: 8px; text-align: right;">${originalPrice.toFixed(2)}</td>
+              <td style="padding: 8px; text-align: right;">${sellingPrice.toFixed(2)}</td>
+              <td style="padding: 8px; text-align: right;">${item.quantity}</td>
+              <td style="padding: 8px; text-align: right;">${total.toFixed(2)}</td>
+              <td style="padding: 8px; text-align: right;">${saved.toFixed(2)}</td>
+            </tr>
+          `;
+        }),
+      );
+
+      // Calculate subtotal
+      const subtotal = await Promise.all(
+        order.orderItems.map(async (item) => {
+          const decryptedItem = await this.decryptOrderItemData(item);
+          const sellingPrice = parseFloat(decryptedItem.sellingPrice);
+          return sellingPrice * item.quantity;
+        }),
+      ).then((totals) => totals.reduce((sum, total) => sum + total, 0));
+
+      // Get discount row if applicable
+      const discountRow =
+        decryptedOrder.discount > 0
+          ? `
+          <tr>
+            <td style="padding: 8px; text-align: right;"><strong>Discount:</strong></td>
+            <td style="padding: 8px; text-align: right;">${decryptedOrder.discount.toFixed(2)}</td>
+          </tr>
+        `
+          : '';
+
+      // Format payment methods
+      const paymentMethods = await Promise.all(
+        order.payments.map(async (payment) => {
+          const decryptedPayment = await this.decryptPaymentData(payment);
+          return `
+            <tr>
+              <td style="padding: 8px; text-align: left;">${payment.method}</td>
+              <td style="padding: 8px; text-align: right;">${decryptedPayment.amount.toFixed(2)}</td>
+            </tr>
+          `;
+        }),
+      );
+
+      // Get wallet information
+      const walletBalance = await this.getCustomerWalletBalance(
+        order.customer.id,
+        shop.id,
+      );
+      const walletBalanceStr = walletBalance.toFixed(2);
+
+      // Calculate total savings
+      const totalSaved = await Promise.all(
+        order.orderItems.map(async (item) => {
+          const decryptedItem = await this.decryptOrderItemData(item);
+          const originalPrice = parseFloat(decryptedItem.originalPrice);
+          const sellingPrice = parseFloat(decryptedItem.sellingPrice);
+          return (originalPrice - sellingPrice) * item.quantity;
+        }),
+      ).then((savings) => savings.reduce((sum, saved) => sum + saved, 0));
+
+      // Get due amount row if applicable
+      const dueAmountRow =
+        decryptedOrder.paymentDue > 0
+          ? `
+          <tr>
+            <td style="padding: 8px; text-align: left;"><strong>Due Amount:</strong></td>
+            <td style="padding: 8px; text-align: right;">${decryptedOrder.paymentDue.toFixed(2)}</td>
+          </tr>
+        `
+          : '';
+
+      // Get extra balance row if applicable
+      const extraBalanceRow =
+        decryptedOrder.extraBalance > 0
+          ? `
+          <tr>
+            <td style="padding: 8px; text-align: left;"><strong>Extra Balance Added:</strong></td>
+            <td style="padding: 8px; text-align: right;">${decryptedOrder.extraBalance.toFixed(2)}</td>
+          </tr>
+        `
+          : '';
+
+      // Get note section if applicable
+      const noteSection = order.note
+        ? `<p><strong>Note:</strong> ${order.note}</p>`
+        : '';
+
+      // Replace placeholders in email template
+      const emailBody = orderReceiptMail
+        .replace('%customerName%', order.customer.name)
+        .replace('%orderId%', order.id)
+        .replace('%orderDate%', new Date(order.createdAt).toLocaleString())
+        .replace('%shopName%', shop.businessName)
+        .replace('%noteSection%', noteSection)
+        .replace('%itemsTable%', formattedItems.join(''))
+        .replace('%subtotal%', subtotal.toFixed(2))
+        .replace('%discountRow%', discountRow)
+        .replace('%totalSaved%', totalSaved.toFixed(2))
+        .replace('%total%', decryptedOrder.total.toFixed(2))
+        .replace('%paymentMethods%', paymentMethods.join(''))
+        .replace('%walletBalance%', walletBalanceStr)
+        .replace('%dueAmountRow%', dueAmountRow)
+        .replace('%extraBalanceRow%', extraBalanceRow)
+        .replace('%pointsEarned%', decryptedOrder.pointsEarned || '0')
+        .replace(
+          '%totalPointsBalance%',
+          decryptedOrder.totalPointsBalance || '0',
+        );
+
+      this.logger.debug('Sending email to:', order.customer.email);
+      this.logger.debug('Email body:', emailBody);
+
+      // Send email using RabbitMQ
+      await lastValueFrom(
+        this.mailerClient.send(
+          {
+            cmd: 'send-mail',
+          },
+          {
+            to: order.customer.email,
+            subject: `Order Receipt - ${order.id}`,
+            html: emailBody,
+          },
+        ),
+      );
+
+      this.logger.log(`Receipt email sent successfully for order ${order.id}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send receipt email for order ${order.id}:`,
+        error,
+      );
       throw error;
     }
   }

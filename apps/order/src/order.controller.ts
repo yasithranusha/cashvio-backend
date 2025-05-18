@@ -44,6 +44,12 @@ export class OrderController {
   ) {
     return this.orderService.updateOrder(req.user.id, id, updateOrderDto);
   }
+
+  @Post('cleanup-items')
+  @Roles(Role.SHOP_OWNER)
+  cleanupOrphanedItems() {
+    return this.orderService.cleanupOrphanedItems();
+  }
 }
 
 @Controller('shop-balance')

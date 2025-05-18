@@ -161,7 +161,6 @@ model Item {
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
   product        Product     @relation(fields: [productId], references: [id])
-  orderItems     OrderItem[]
 
   @@index([productId])
   @@map("items")
@@ -270,7 +269,6 @@ model OrderItem {
   sellingPrice  String   @map("selling_price")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
-  item          Item     @relation(fields: [itemId], references: [id])
   order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product       Product  @relation(fields: [productId], references: [id])
 

@@ -113,4 +113,12 @@ export class CreateOrderDto {
   @IsBoolean()
   @IsOptional()
   draft?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  sendReceiptEmail?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  print?: boolean;
 }
