@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Request,
+  Patch,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto, OrderQueryDto } from './dto';
@@ -32,6 +33,16 @@ export class OrderController {
   @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
   getOrderById(@Request() req, @Param('id') id: string) {
     return this.orderService.getOrderById(req.user.id, id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  updateOrder(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() updateOrderDto: CreateOrderDto,
+  ) {
+    return this.orderService.updateOrder(req.user.id, id, updateOrderDto);
   }
 }
 
