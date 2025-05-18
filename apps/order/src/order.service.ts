@@ -745,14 +745,6 @@ export class OrderService implements OnModuleInit {
               }
             }
 
-            // Delete items from inventory
-            for (const orderItem of orderItemsData) {
-              // Delete the item from inventory
-              await tx.item.delete({
-                where: { id: orderItem.itemId },
-              });
-            }
-
             // Handle payment due
             if (useWalletToPayDue && customerId) {
               // Only adjust the wallet balance by the amount due being paid
@@ -1410,14 +1402,6 @@ export class OrderService implements OnModuleInit {
             }
           }
 
-          // Delete items from inventory
-          for (const orderItem of order.orderItems) {
-            // Delete the item from inventory
-            await tx.item.delete({
-              where: { id: orderItem.itemId },
-            });
-          }
-
           // Handle payment due
           if (useWalletToPayDue && order.customerId) {
             const wallet = await tx.customerWallet.findUnique({
@@ -1535,7 +1519,7 @@ export class OrderService implements OnModuleInit {
       }
 
       // Verify user has access to this shop
-      await this.getShopForUser(userId, order.shopId);
+      const shopId = await this.getShopForUser(userId, order.shopId);
 
       // Only draft/pending orders can be updated
       if (order.status !== OrderStatus.PENDING) {
@@ -1675,7 +1659,7 @@ export class OrderService implements OnModuleInit {
                 // Otherwise check if customer has payment due (negative wallet balance)
                 const walletBalance = await this.getCustomerWalletBalance(
                   order.customerId,
-                  order.shopId,
+                  shopId,
                 );
 
                 if (walletBalance < 0) {
@@ -1737,23 +1721,11 @@ export class OrderService implements OnModuleInit {
               // Update shop balance for non-wallet payments
               if (payment.method !== PaymentMethod.WALLET) {
                 await this.updateShopBalance(
-                  order.shopId,
+                  shopId,
                   payment.method,
                   payment.amount,
                 );
               }
-            }
-
-            // Delete items from inventory
-            const orderItems = await tx.orderItem.findMany({
-              where: { orderId },
-            });
-
-            for (const orderItem of orderItems) {
-              // Delete the item from inventory
-              await tx.item.delete({
-                where: { id: orderItem.itemId },
-              });
             }
 
             // Handle payment due
@@ -1762,7 +1734,7 @@ export class OrderService implements OnModuleInit {
                 where: {
                   customerId_shopId: {
                     customerId: order.customerId,
-                    shopId: order.shopId,
+                    shopId,
                   },
                 },
               });
@@ -1785,7 +1757,7 @@ export class OrderService implements OnModuleInit {
                     where: {
                       customerId_shopId: {
                         customerId: order.customerId,
-                        shopId: order.shopId,
+                        shopId,
                       },
                     },
                     data: {
@@ -1799,7 +1771,7 @@ export class OrderService implements OnModuleInit {
                     where: {
                       customerId_shopId: {
                         customerId: order.customerId,
-                        shopId: order.shopId,
+                        shopId,
                       },
                     },
                     data: {
