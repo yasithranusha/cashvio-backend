@@ -245,7 +245,7 @@ export class OrderService implements OnModuleInit {
    * @param encryptedText Encrypted data
    * @returns Decrypted data
    */
-  private async decrypt(encryptedText: string): Promise<string> {
+  public async decrypt(encryptedText: string): Promise<string> {
     if (!encryptedText) {
       return '0';
     }

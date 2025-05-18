@@ -251,6 +251,7 @@ model Order {
   customer     User?        @relation(fields: [customerId], references: [id])
   shop         Shop         @relation(fields: [shopId], references: [id])
   payments     Payment[]
+  walletTransactions WalletTransaction[]
 
   @@index([shopId])
   @@index([customerId])
@@ -302,11 +303,31 @@ model CustomerWallet {
   updatedAt     DateTime @updatedAt @map("updated_at")
   customer      User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  transactions  WalletTransaction[]
 
   @@id([customerId, shopId])
   @@index([customerId])
   @@index([shopId])
   @@map("customer_wallets")
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  shopId      String   @map("shop_id")
+  orderId     String?  @map("order_id")
+  amount      String   // Positive for additions, negative for deductions
+  type        TransactionType
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  wallet      CustomerWallet @relation(fields: [customerId, shopId], references: [customerId, shopId], onDelete: Cascade)
+  order       Order?    @relation(fields: [orderId], references: [id])
+
+  @@index([customerId])
+  @@index([shopId])
+  @@index([orderId])
+  @@map("wallet_transactions")
 }
 
 model ShopBalance {
@@ -360,4 +381,12 @@ enum PaymentMethod {
   CARD
   BANK
   WALLET
+}
+
+enum TransactionType {
+  ORDER_PAYMENT
+  DUE_PAYMENT
+  EXTRA_PAYMENT
+  LOYALTY_POINTS
+  REFUND
 }
