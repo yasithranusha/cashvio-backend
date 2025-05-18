@@ -7,14 +7,13 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-
 import { PrismaService } from '@app/common/database/prisma.service';
 import { CreateOrderDto, OrderQueryDto, DiscountType } from './dto';
 import * as crypto from 'crypto';
 import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { KMS } from '@aws-sdk/client-kms';
-import { PaymentMethod, Role, OrderStatus } from '@prisma/client';
+import { PaymentMethod, Role, OrderStatus, Status } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ClientProxy } from '@nestjs/microservices';
 import { MAILER_SERVICE } from './constants/services';
@@ -23,6 +22,7 @@ import { lastValueFrom } from 'rxjs';
 import { setImmediate } from 'timers';
 import { ReceiptPdfService } from './pdf/receipt-pdf.service';
 import { RmqService } from '@app/common/rmq/rmq.service';
+import { Order as PrismaOrder, Shop as PrismaShop } from '@prisma/client';
 
 @Injectable()
 export class OrderService implements OnModuleInit {
@@ -836,6 +836,17 @@ export class OrderService implements OnModuleInit {
         },
       );
 
+      // Delete items from inventory immediately after transaction completes for completed orders
+      if (result.status === OrderStatus.COMPLETED) {
+        this.logger.debug(
+          `[CREATE_ORDER] About to delete items for order ${result.id}`,
+        );
+        await this.deleteItemsForCompletedOrder(result.id);
+        this.logger.debug(
+          `[CREATE_ORDER] Finished deleting items for order ${result.id}`,
+        );
+      }
+
       // Get the complete order with all relations after transaction
       const completedOrder = await this.prisma.order.findUnique({
         where: { id: result.id },
@@ -893,11 +904,13 @@ export class OrderService implements OnModuleInit {
         );
 
         // Schedule email sending after transaction completes
-        setImmediate(() => {
-          void this.sendReceiptEmail(completedOrder as any, {
-            id: (completedOrder as any).shop.id,
-            businessName: (completedOrder as any).shop.businessName,
+        setImmediate(async () => {
+          const shop = await this.prisma.shop.findUnique({
+            where: { id: (completedOrder as any).shop.id },
           });
+          if (shop) {
+            void this.sendReceiptEmail(completedOrder as any, shop);
+          }
         });
       }
 
@@ -1465,7 +1478,7 @@ export class OrderService implements OnModuleInit {
         ),
       );
 
-      // Use a transaction to update order status, process payments, and delete items
+      // Use a transaction to update order status and process payments
       const result = await this.prisma.$transaction(
         async (tx) => {
           // Update order status to COMPLETED
@@ -1559,24 +1572,32 @@ export class OrderService implements OnModuleInit {
             );
           }
 
-          // Send receipt email if customer has email
-          if (updatedOrder.customer?.email) {
-            // Schedule email sending after transaction completes
-            setImmediate(() => {
-              void this.sendReceiptEmail(updatedOrder, {
-                id: updatedOrder.shop.id,
-                businessName: updatedOrder.shop.businessName,
-              });
-            });
-          }
-
-          return this.decryptOrderData(updatedOrder);
+          return updatedOrder;
         },
         {
           // Increase transaction timeout to 30 seconds to accommodate encryption operations
           timeout: 30000,
         },
       );
+
+      // Delete items from inventory immediately after transaction completes
+      this.logger.debug(
+        `[COMPLETE_DRAFT] About to delete items for order ${orderId}`,
+      );
+      await this.deleteItemsForCompletedOrder(orderId);
+      this.logger.debug(
+        `[COMPLETE_DRAFT] Finished deleting items for order ${orderId}`,
+      );
+
+      // Send receipt email if customer has email
+      if (result.customer?.email) {
+        const shop = await this.prisma.shop.findUnique({
+          where: { id: result.shop.id },
+        });
+        if (shop) {
+          void this.sendReceiptEmail(result, shop);
+        }
+      }
 
       return result;
     } catch (error) {
@@ -2030,34 +2051,16 @@ export class OrderService implements OnModuleInit {
                 },
               },
               payments: true,
+              shop: {
+                select: {
+                  id: true,
+                  businessName: true,
+                },
+              },
             },
           });
 
-          // Decrypt order data for response
-          const decryptedOrder = await this.decryptOrderData(updatedOrder);
-
-          // Decrypt order items
-          if (
-            decryptedOrder.orderItems &&
-            decryptedOrder.orderItems.length > 0
-          ) {
-            decryptedOrder.orderItems = await Promise.all(
-              decryptedOrder.orderItems.map(
-                async (item) => await this.decryptOrderItemData(item),
-              ),
-            );
-          }
-
-          // Decrypt payments
-          if (decryptedOrder.payments && decryptedOrder.payments.length > 0) {
-            decryptedOrder.payments = await Promise.all(
-              decryptedOrder.payments.map(
-                async (payment) => await this.decryptPaymentData(payment),
-              ),
-            );
-          }
-
-          return decryptedOrder;
+          return updatedOrder;
         },
         {
           // Increase transaction timeout to 30 seconds to accommodate encryption operations
@@ -2065,9 +2068,19 @@ export class OrderService implements OnModuleInit {
         },
       );
 
-      // If we completed a draft order, delete items from inventory after transaction completes
+      // If we completed a draft order, delete items from inventory immediately after transaction completes
       if (isCompletingDraft) {
         await this.deleteItemsForCompletedOrder(orderId);
+      }
+
+      // Send receipt email if customer has email
+      if (updatedOrder.customer?.email) {
+        const shop = await this.prisma.shop.findUnique({
+          where: { id: updatedOrder.shop.id },
+        });
+        if (shop) {
+          void this.sendReceiptEmail(updatedOrder, shop);
+        }
       }
 
       return updatedOrder;
@@ -2085,18 +2098,45 @@ export class OrderService implements OnModuleInit {
    */
   async deleteItemsForCompletedOrder(orderId: string): Promise<void> {
     try {
-      // Get the item IDs from order items
-      const orderItems = await this.prisma.orderItem.findMany({
-        where: { orderId },
-        select: { itemId: true },
+      this.logger.debug(
+        `[DELETE_ITEMS] Starting item deletion for order ${orderId}`,
+      );
+
+      // Get the order with its items
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          orderItems: {
+            select: {
+              itemId: true,
+            },
+          },
+        },
       });
 
-      // Get all item IDs
-      const itemIds = orderItems
+      if (!order) {
+        this.logger.error(`[DELETE_ITEMS] Order ${orderId} not found`);
+        return;
+      }
+
+      this.logger.debug(
+        `[DELETE_ITEMS] Found order with ${order.orderItems.length} items`,
+      );
+      this.logger.debug(
+        `[DELETE_ITEMS] Order items: ${JSON.stringify(order.orderItems)}`,
+      );
+
+      // Get all item IDs from order items
+      const itemIds = order.orderItems
         .map((item) => item.itemId)
         .filter((id) => id !== null && id !== undefined);
 
+      this.logger.debug(
+        `[DELETE_ITEMS] Filtered item IDs: ${JSON.stringify(itemIds)}`,
+      );
+
       if (itemIds.length === 0) {
+        this.logger.warn(`[DELETE_ITEMS] No items found for order ${orderId}`);
         return;
       }
 
@@ -2104,21 +2144,34 @@ export class OrderService implements OnModuleInit {
       let deletedCount = 0;
       for (const itemId of itemIds) {
         try {
-          await this.prisma.item.delete({
+          this.logger.debug(
+            `[DELETE_ITEMS] Attempting to delete item ${itemId}`,
+          );
+          const deletedItem = await this.prisma.item.delete({
             where: { id: itemId },
           });
           deletedCount++;
+          this.logger.debug(
+            `[DELETE_ITEMS] Successfully deleted item ${itemId}: ${JSON.stringify(deletedItem)}`,
+          );
         } catch (error) {
-          this.logger.error(`Failed to delete item ${itemId}:`, error);
+          this.logger.error(
+            `[DELETE_ITEMS] Failed to delete item ${itemId}:`,
+            error,
+          );
           // Continue with other items even if one fails
         }
       }
 
       this.logger.log(
-        `Successfully deleted ${deletedCount} items for order ${orderId}`,
+        `[DELETE_ITEMS] Successfully deleted ${deletedCount} items for order ${orderId}`,
       );
     } catch (error) {
-      this.logger.error(`Error deleting items for order ${orderId}:`, error);
+      this.logger.error(
+        `[DELETE_ITEMS] Error deleting items for order ${orderId}:`,
+        error,
+      );
+      this.logger.error(`[DELETE_ITEMS] Error stack:`, error.stack);
     }
   }
 
@@ -2180,165 +2233,112 @@ export class OrderService implements OnModuleInit {
    * @param shop The shop data
    * @returns void
    */
-  async sendReceiptEmail(order: any, shop: any): Promise<void> {
-    try {
-      this.logger.debug('Starting to send receipt email...');
-      this.logger.debug('Order data:', JSON.stringify(order, null, 2));
-      this.logger.debug('Shop data:', JSON.stringify(shop, null, 2));
+  async sendReceiptEmail(
+    order: PrismaOrder & {
+      customer?: { email: string; name: string } | null;
+      orderItems?: Array<{
+        product: { name: string };
+        quantity: number;
+        sellingPrice: string;
+      }>;
+      payments?: Array<{
+        method: PaymentMethod;
+        amount: string;
+      }>;
+    },
+    shop: PrismaShop & {
+      status: Status;
+      createdAt: Date;
+      updatedAt: Date;
+      businessName: string;
+      shopCategory: string;
+      address: string;
+      shopLogo: string;
+      shopBanner: string;
+      contactPhone: string;
+    },
+  ) {
+    if (!order.customer?.email) return;
 
-      if (!order.customer?.email) {
-        this.logger.warn('No customer email found, skipping email send');
-        return;
-      }
+    const orderDetails = `
+      <p>Order Status: ${order.status}</p>
+      <p>Order Number: ${order.orderNumber}</p>
+    `;
 
-      // Decrypt order data
-      const decryptedOrder = await this.decryptOrderData(order);
+    const itemsTable = `
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <thead>
+          <tr style="background-color: #f8f9fa;">
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Item</th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Price</th>
+            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Qty</th>
+            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${order.orderItems
+            ?.map(async (item) => {
+              const sellingPrice = parseFloat(
+                await this.decrypt(item.sellingPrice),
+              );
+              return `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${item.product.name}</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Rs. ${sellingPrice.toFixed(2)}</td>
+                  <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${item.quantity}</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Rs. ${(sellingPrice * item.quantity).toFixed(2)}</td>
+                </tr>
+              `;
+            })
+            .join('')}
+        </tbody>
+      </table>
+    `;
 
-      // Format items for email
-      const formattedItems = await Promise.all(
-        order.orderItems.map(async (item) => {
-          const decryptedItem = await this.decryptOrderItemData(item);
-          const originalPrice = parseFloat(decryptedItem.originalPrice);
-          const sellingPrice = parseFloat(decryptedItem.sellingPrice);
-          const total = sellingPrice * item.quantity;
-          const saved = (originalPrice - sellingPrice) * item.quantity;
-
-          return `
-            <tr>
-              <td style="padding: 8px; text-align: left;">${item.product.name}</td>
-              <td style="padding: 8px; text-align: right;">${originalPrice.toFixed(2)}</td>
-              <td style="padding: 8px; text-align: right;">${sellingPrice.toFixed(2)}</td>
-              <td style="padding: 8px; text-align: right;">${item.quantity}</td>
-              <td style="padding: 8px; text-align: right;">${total.toFixed(2)}</td>
-              <td style="padding: 8px; text-align: right;">${saved.toFixed(2)}</td>
-            </tr>
+    const paymentInfo = order.payments?.length
+      ? `
+      <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+        <h3 style="color: #2c3e50; margin-bottom: 10px;">Payment Information</h3>
+        ${order.payments
+          .map(async (payment) => {
+            const amount = parseFloat(await this.decrypt(payment.amount));
+            return `
+            <p>Method: ${payment.method}</p>
+            <p>Amount: Rs. ${amount.toFixed(2)}</p>
           `;
-        }),
-      );
+          })
+          .join('')}
+      </div>
+    `
+      : '';
 
-      // Calculate subtotal
-      const subtotal = await Promise.all(
-        order.orderItems.map(async (item) => {
-          const decryptedItem = await this.decryptOrderItemData(item);
-          const sellingPrice = parseFloat(decryptedItem.sellingPrice);
-          return sellingPrice * item.quantity;
-        }),
-      ).then((totals) => totals.reduce((sum, total) => sum + total, 0));
+    const subtotal = parseFloat(await this.decrypt(order.subtotal));
+    const discount = parseFloat(await this.decrypt(order.discount));
+    const total = parseFloat(await this.decrypt(order.total));
 
-      // Get discount row if applicable
-      const discountRow =
-        decryptedOrder.discount > 0
-          ? `
-          <tr>
-            <td style="padding: 8px; text-align: right;"><strong>Discount:</strong></td>
-            <td style="padding: 8px; text-align: right;">${decryptedOrder.discount.toFixed(2)}</td>
-          </tr>
-        `
-          : '';
-
-      // Format payment methods
-      const paymentMethods = await Promise.all(
-        order.payments.map(async (payment) => {
-          const decryptedPayment = await this.decryptPaymentData(payment);
-          return `
-            <tr>
-              <td style="padding: 8px; text-align: left;">${payment.method}</td>
-              <td style="padding: 8px; text-align: right;">${decryptedPayment.amount.toFixed(2)}</td>
-            </tr>
-          `;
-        }),
-      );
-
-      // Get wallet information
-      const walletBalance = await this.getCustomerWalletBalance(
-        order.customer.id,
-        shop.id,
-      );
-      const walletBalanceStr = walletBalance.toFixed(2);
-
-      // Calculate total savings
-      const totalSaved = await Promise.all(
-        order.orderItems.map(async (item) => {
-          const decryptedItem = await this.decryptOrderItemData(item);
-          const originalPrice = parseFloat(decryptedItem.originalPrice);
-          const sellingPrice = parseFloat(decryptedItem.sellingPrice);
-          return (originalPrice - sellingPrice) * item.quantity;
-        }),
-      ).then((savings) => savings.reduce((sum, saved) => sum + saved, 0));
-
-      // Get due amount row if applicable
-      const dueAmountRow =
-        decryptedOrder.paymentDue > 0
-          ? `
-          <tr>
-            <td style="padding: 8px; text-align: left;"><strong>Due Amount:</strong></td>
-            <td style="padding: 8px; text-align: right;">${decryptedOrder.paymentDue.toFixed(2)}</td>
-          </tr>
-        `
-          : '';
-
-      // Get extra balance row if applicable
-      const extraBalanceRow =
-        decryptedOrder.extraBalance > 0
-          ? `
-          <tr>
-            <td style="padding: 8px; text-align: left;"><strong>Extra Balance Added:</strong></td>
-            <td style="padding: 8px; text-align: right;">${decryptedOrder.extraBalance.toFixed(2)}</td>
-          </tr>
-        `
-          : '';
-
-      // Get note section if applicable
-      const noteSection = order.note
-        ? `<p><strong>Note:</strong> ${order.note}</p>`
-        : '';
-
-      // Replace placeholders in email template
-      const emailBody = orderReceiptMail
-        .replace('%customerName%', order.customer.name)
-        .replace('%orderId%', order.id)
-        .replace('%orderDate%', new Date(order.createdAt).toLocaleString())
-        .replace('%shopName%', shop.businessName)
-        .replace('%noteSection%', noteSection)
-        .replace('%itemsTable%', formattedItems.join(''))
-        .replace('%subtotal%', subtotal.toFixed(2))
-        .replace('%discountRow%', discountRow)
-        .replace('%totalSaved%', totalSaved.toFixed(2))
-        .replace('%total%', decryptedOrder.total.toFixed(2))
-        .replace('%paymentMethods%', paymentMethods.join(''))
-        .replace('%walletBalance%', walletBalanceStr)
-        .replace('%dueAmountRow%', dueAmountRow)
-        .replace('%extraBalanceRow%', extraBalanceRow)
-        .replace('%pointsEarned%', decryptedOrder.pointsEarned || '0')
-        .replace(
-          '%totalPointsBalance%',
-          decryptedOrder.totalPointsBalance || '0',
-        );
-
-      this.logger.debug('Sending email to:', order.customer.email);
-      this.logger.debug('Email body:', emailBody);
-
-      // Send email using RabbitMQ
-      await lastValueFrom(
-        this.mailerClient.send(
+    await lastValueFrom(
+      this.mailerClient.emit('send_email', {
+        from: 'cashvio@gmail.com',
+        recipients: [
           {
-            cmd: 'send-mail',
+            address: order.customer.email,
+            variables: {
+              customerName: order.customer.name,
+              orderId: order.id,
+              orderDate: new Date(order.createdAt).toLocaleString(),
+              shopName: shop.businessName,
+              orderDetails: orderDetails,
+              itemsTable: itemsTable,
+              subtotal: `Rs. ${subtotal.toFixed(2)}`,
+              discounts: `Rs. ${discount.toFixed(2)}`,
+              finalTotal: `Rs. ${total.toFixed(2)}`,
+              paymentInfo: paymentInfo,
+            },
           },
-          {
-            to: order.customer.email,
-            subject: `Order Receipt - ${order.id}`,
-            html: emailBody,
-          },
-        ),
-      );
-
-      this.logger.log(`Receipt email sent successfully for order ${order.id}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to send receipt email for order ${order.id}:`,
-        error,
-      );
-      throw error;
-    }
+        ],
+        subject: `Order Receipt - ${order.orderNumber}`,
+        html: orderReceiptMail,
+      }),
+    );
   }
 }
