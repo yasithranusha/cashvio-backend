@@ -17,7 +17,7 @@ export class ShopBalanceController {
   constructor(private readonly shopBalanceService: ShopBalanceService) {}
 
   @Get(':shopId')
-  @Roles(Role.SHOP_STAFF)
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
   async getShopBalance(@Param('shopId') shopId: string, @Req() req) {
     this.logger.debug(`GET /shop-balance/${shopId}`);
 

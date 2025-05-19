@@ -67,6 +67,16 @@ export class ShopBalanceController {
 export class CustomerWalletController {
   constructor(private readonly orderService: OrderService) {}
 
+  @Get('all/:customerId')
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  getCustomerWallets(@Request() req, @Param('customerId') customerId: string) {
+    // Verify user has access to see this customer's data
+    return this.orderService.getCustomerWalletsForAllShops(
+      req.user.id,
+      customerId,
+    );
+  }
+
   @Get(':shopId/:customerId')
   @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
   getCustomerWallet(

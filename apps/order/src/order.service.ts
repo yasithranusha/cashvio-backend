@@ -2341,4 +2341,119 @@ export class OrderService implements OnModuleInit {
       }),
     );
   }
+
+  /**
+   * Get customer wallet balances from all shops that the requesting user has access to
+   * @param userId User ID of the requesting user
+   * @param customerId Customer ID to get wallets for
+   * @returns All wallet balances for the customer
+   */
+  async getCustomerWalletsForAllShops(
+    userId: string,
+    customerId: string,
+  ): Promise<any> {
+    try {
+      // Get all shops the user has access to
+      const userShops = await this.prisma.userShop.findMany({
+        where: { userId },
+        select: { shopId: true, shop: true },
+      });
+
+      if (!userShops || userShops.length === 0) {
+        return {
+          wallets: [],
+          totalBalance: 0,
+          totalLoyaltyPoints: 0,
+        };
+      }
+
+      const shopIds = userShops.map((userShop) => userShop.shopId);
+
+      // Get all wallets for the customer across these shops
+      const wallets = await this.prisma.customerWallet.findMany({
+        where: {
+          customerId,
+          shopId: { in: shopIds },
+        },
+        include: {
+          shop: {
+            select: {
+              businessName: true,
+              shopLogo: true,
+            },
+          },
+        },
+      });
+
+      // Decrypt wallet values
+      const decryptedWallets = await Promise.all(
+        wallets.map(async (wallet) => {
+          try {
+            const balance = parseFloat(await this.decrypt(wallet.balance));
+            const loyaltyPoints = parseInt(
+              await this.decrypt(wallet.loyaltyPoints)
+            );
+            return {
+              customerId: wallet.customerId,
+              shopId: wallet.shopId,
+              shopName: wallet.shop.businessName,
+              shopLogo: wallet.shop.shopLogo,
+              balance,
+              loyaltyPoints,
+              createdAt: wallet.createdAt,
+              updatedAt: wallet.updatedAt,
+            };
+          } catch (error) {
+            this.logger.error(
+              `Error decrypting wallet for shop ${wallet.shopId}: ${error.message}`,
+            );
+            return {
+              customerId: wallet.customerId,
+              shopId: wallet.shopId,
+              shopName: wallet.shop.businessName,
+              shopLogo: wallet.shop.shopLogo,
+              balance: 0,
+              loyaltyPoints: 0,
+              createdAt: wallet.createdAt,
+              updatedAt: wallet.updatedAt,
+              error: 'Failed to decrypt wallet data',
+            };
+          }
+        }),
+      );
+
+      // Get customer details
+      const customer = await this.prisma.user.findUnique({
+        where: { id: customerId },
+        select: {
+          name: true,
+          email: true,
+          contactNumber: true,
+        },
+      });
+
+      // Calculate totals
+      const totalBalance = decryptedWallets.reduce(
+        (sum, wallet) => sum + wallet.balance,
+        0,
+      );
+      const totalLoyaltyPoints = decryptedWallets.reduce(
+        (sum, wallet) => sum + wallet.loyaltyPoints,
+        0,
+      );
+
+      return {
+        customer,
+        wallets: decryptedWallets,
+        totalBalance,
+        totalLoyaltyPoints,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting customer wallets: ${error.message}`,
+        error.stack,
+      );
+      throw new Error('Failed to get customer wallets');
+    }
+  }
 }

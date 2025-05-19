@@ -158,10 +158,10 @@ export class CustomerOrderService {
       if (wallet) {
         // Use raw query since walletTransaction is not in Prisma schema yet
         transactions = await this.prisma.$queryRaw`
-          SELECT * FROM "WalletTransaction"
-          WHERE "customerId" = ${customerId}
-          AND "shopId" = ${shopId}
-          ORDER BY "createdAt" DESC
+          SELECT * FROM "wallet_transactions"
+          WHERE "customer_id" = ${customerId}
+          AND "shop_id" = ${shopId}
+          ORDER BY "created_at" DESC
         `;
       }
 
@@ -343,5 +343,238 @@ export class CustomerOrderService {
     });
 
     return !!userShop;
+  }
+
+  /**
+   * Get customer order history from all shops that the requesting user has access to
+   * @param userId User ID of the requesting user
+   * @param customerId Customer ID
+   * @returns Customer orders from all accessible shops
+   */
+  async getCustomerOrderHistoryForAllShops(userId: string, customerId: string) {
+    try {
+      // Get all shops the user has access to
+      const userShops = await this.prisma.userShop.findMany({
+        where: { userId },
+        select: {
+          shopId: true,
+          shop: {
+            select: {
+              id: true,
+              businessName: true,
+              shopLogo: true,
+            },
+          },
+        },
+      });
+
+      if (!userShops || userShops.length === 0) {
+        return {
+          customer: null,
+          shopData: [],
+        };
+      }
+
+      const shopIds = userShops.map((userShop) => userShop.shopId);
+
+      // Get customer details
+      const customer = await this.prisma.user.findUnique({
+        where: { id: customerId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          contactNumber: true,
+        },
+      });
+
+      if (!customer) {
+        return {
+          customer: null,
+          shopData: [],
+        };
+      }
+
+      // Get data from each shop
+      const shopData = await Promise.all(
+        userShops.map(async (userShop) => {
+          try {
+            const orderHistory = await this.getCustomerOrderHistory(
+              customerId,
+              userShop.shopId,
+            );
+
+            return {
+              shopId: userShop.shopId,
+              shopName: userShop.shop.businessName,
+              shopLogo: userShop.shop.shopLogo,
+              orderHistory,
+            };
+          } catch (error) {
+            this.logger.error(
+              `Error getting order history for shop ${userShop.shopId}: ${error.message}`,
+            );
+            return {
+              shopId: userShop.shopId,
+              shopName: userShop.shop.businessName,
+              shopLogo: userShop.shop.shopLogo,
+              orderHistory: {
+                wallet: null,
+                orders: [],
+                error: 'Failed to get order history',
+              },
+            };
+          }
+        }),
+      );
+
+      return {
+        customer,
+        shopData: shopData.filter(
+          (shop) =>
+            shop.orderHistory &&
+            (shop.orderHistory.wallet ||
+              (shop.orderHistory.orders &&
+                shop.orderHistory.orders.length > 0)),
+        ),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting all shops customer order history: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get customer warranty items from all shops that the requesting user has access to
+   * @param userId User ID of the requesting user
+   * @param customerId Customer ID
+   * @returns Warranty items from all accessible shops
+   */
+  async getCustomerWarrantyItemsForAllShops(
+    userId: string,
+    customerId: string,
+  ) {
+    try {
+      // Get all shops the user has access to
+      const userShops = await this.prisma.userShop.findMany({
+        where: { userId },
+        select: {
+          shopId: true,
+          shop: {
+            select: {
+              id: true,
+              businessName: true,
+              shopLogo: true,
+            },
+          },
+        },
+      });
+
+      if (!userShops || userShops.length === 0) {
+        return {
+          customer: null,
+          shopData: [],
+        };
+      }
+
+      // Get customer details
+      const customer = await this.prisma.user.findUnique({
+        where: { id: customerId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          contactNumber: true,
+        },
+      });
+
+      if (!customer) {
+        return {
+          customer: null,
+          shopData: [],
+        };
+      }
+
+      // Get warranty data from each shop
+      const shopData = await Promise.all(
+        userShops.map(async (userShop) => {
+          try {
+            const warrantyItems = await this.getCustomerWarrantyItems(
+              customerId,
+              userShop.shopId,
+            );
+
+            // Only include shops with warranty items
+            if (
+              (warrantyItems.activeWarranty &&
+                warrantyItems.activeWarranty.length > 0) ||
+              (warrantyItems.expiredWarranty &&
+                warrantyItems.expiredWarranty.length > 0)
+            ) {
+              return {
+                shopId: userShop.shopId,
+                shopName: userShop.shop.businessName,
+                shopLogo: userShop.shop.shopLogo,
+                warrantyItems,
+              };
+            }
+
+            return null;
+          } catch (error) {
+            this.logger.error(
+              `Error getting warranty items for shop ${userShop.shopId}: ${error.message}`,
+            );
+            return null;
+          }
+        }),
+      );
+
+      // Filter out null entries
+      const filteredShopData = shopData.filter((shop) => shop !== null);
+
+      // Combine all active warranty items across shops
+      const allActiveWarranty = [];
+      const allExpiredWarranty = [];
+
+      filteredShopData.forEach((shop) => {
+        if (shop.warrantyItems.activeWarranty) {
+          shop.warrantyItems.activeWarranty.forEach((item) =>
+            allActiveWarranty.push({
+              ...item,
+              shopId: shop.shopId,
+              shopName: shop.shopName,
+            }),
+          );
+        }
+
+        if (shop.warrantyItems.expiredWarranty) {
+          shop.warrantyItems.expiredWarranty.forEach((item) =>
+            allExpiredWarranty.push({
+              ...item,
+              shopId: shop.shopId,
+              shopName: shop.shopName,
+            }),
+          );
+        }
+      });
+
+      return {
+        customer,
+        shopData: filteredShopData,
+        allActiveWarranty,
+        allExpiredWarranty,
+        activeCount: allActiveWarranty.length,
+        expiredCount: allExpiredWarranty.length,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting all shops customer warranty items: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 }

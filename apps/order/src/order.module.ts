@@ -3,7 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { DatabaseModule, RmqModule } from '@app/common';
 import { AuthModule } from '@app/common';
-import { OrderController } from './order.controller';
+import {
+  OrderController,
+  ShopBalanceController,
+  CustomerWalletController,
+} from './order.controller';
 import { OrderService } from './order.service';
 import { validate } from './env.validation';
 import { CustomerOrderModule } from './customer-order/customer-order.module';
@@ -36,7 +40,11 @@ import { ReceiptPdfService } from './pdf/receipt-pdf.service';
     CustomerOrderModule,
     ShopBalanceModule,
   ],
-  controllers: [OrderController],
+  controllers: [
+    OrderController,
+    ShopBalanceController,
+    CustomerWalletController,
+  ],
   providers: [OrderService, ReceiptPdfService],
   exports: [OrderService],
 })

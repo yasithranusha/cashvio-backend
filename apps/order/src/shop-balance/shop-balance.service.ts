@@ -35,10 +35,23 @@ export class ShopBalanceService {
   }
 
   private async decrypt(text: string): Promise<string> {
-    if (!text) return '0';
-    if (!this.kmsKeyId && !this.kmsKeyAlias) return text;
+    if (!text) {
+      this.logger.warn(
+        'Attempting to decrypt null or empty value, returning "0"',
+      );
+      return '0';
+    }
+
     if (text === '0') return text;
-    if (text.startsWith('fb:')) return this.decryptLocal(text);
+
+    if (!this.kmsKeyId && !this.kmsKeyAlias) {
+      this.logger.debug('No KMS key configured, returning text as-is');
+      return text;
+    }
+
+    if (text.startsWith('fb:')) {
+      return this.decryptLocal(text);
+    }
 
     try {
       const encryptedBuffer = Buffer.from(text, 'base64');
@@ -47,10 +60,14 @@ export class ShopBalanceService {
       });
       return Buffer.from(response.Plaintext).toString('utf8');
     } catch (error) {
-      this.logger.error('Decryption error:', error);
+      this.logger.error(
+        `KMS Decryption error for value: ${text.substring(0, 10)}...`,
+        error,
+      );
       if (text.startsWith('fb:')) {
         return this.decryptLocal(text);
       }
+      this.logger.warn('Returning original text due to decryption failure');
       return text;
     }
   }
@@ -65,8 +82,11 @@ export class ShopBalanceService {
       decrypted += decipher.final('utf8');
       return decrypted;
     } catch (error) {
-      this.logger.error('Local decryption error:', error);
-      return encryptedText;
+      this.logger.error(
+        `Local decryption error for value: ${encryptedText.substring(0, 20)}...`,
+        error,
+      );
+      return '0'; // Return '0' instead of the original encrypted text on failure
     }
   }
 
@@ -74,9 +94,13 @@ export class ShopBalanceService {
     const decryptedPayment = { ...payment };
 
     if (decryptedPayment.amount) {
-      decryptedPayment.amount = parseFloat(
-        await this.decrypt(decryptedPayment.amount),
-      );
+      try {
+        const decryptedAmount = await this.decrypt(decryptedPayment.amount);
+        decryptedPayment.amount = parseFloat(decryptedAmount);
+      } catch (error) {
+        this.logger.error(`Error decrypting payment amount: ${error.message}`);
+        decryptedPayment.amount = 0; // Default to 0 on error
+      }
     }
 
     return decryptedPayment;
@@ -98,20 +122,52 @@ export class ShopBalanceService {
 
       if (!shopBalance) {
         return {
-          balance: null,
+          balance: {
+            cashBalance: 0,
+            cardBalance: 0,
+            bankBalance: 0,
+          },
           payments: [],
         };
       }
 
       // Decrypt balance data
+      let decryptedCashBalance = 0;
+      let decryptedCardBalance = 0;
+      let decryptedBankBalance = 0;
+
+      try {
+        decryptedCashBalance = parseFloat(
+          await this.decrypt(shopBalance.cashBalance || '0'),
+        );
+      } catch (e) {
+        this.logger.error(`Failed to decrypt cashBalance: ${e.message}`);
+      }
+
+      try {
+        decryptedCardBalance = parseFloat(
+          await this.decrypt(shopBalance.cardBalance || '0'),
+        );
+      } catch (e) {
+        this.logger.error(`Failed to decrypt cardBalance: ${e.message}`);
+      }
+
+      try {
+        decryptedBankBalance = parseFloat(
+          await this.decrypt(shopBalance.bankBalance || '0'),
+        );
+      } catch (e) {
+        this.logger.error(`Failed to decrypt bankBalance: ${e.message}`);
+      }
+
       const decryptedBalance = {
         ...shopBalance,
-        cashBalance: parseFloat(await this.decrypt(shopBalance.cashBalance)),
-        cardBalance: parseFloat(await this.decrypt(shopBalance.cardBalance)),
-        bankBalance: parseFloat(await this.decrypt(shopBalance.bankBalance)),
+        cashBalance: decryptedCashBalance,
+        cardBalance: decryptedCardBalance,
+        bankBalance: decryptedBankBalance,
       };
 
-      // Get payment history
+      // Calculate total from payments as a verification
       const payments = await this.prisma.payment.findMany({
         where: {
           order: {
@@ -137,9 +193,41 @@ export class ShopBalanceService {
         payments.map((payment) => this.decryptPaymentData(payment)),
       );
 
+      // Calculate totals by payment method for verification
+      const totals = {
+        CASH: 0,
+        CARD: 0,
+        BANK: 0,
+        WALLET: 0,
+      };
+
+      for (const payment of decryptedPayments) {
+        if (payment.method && payment.amount) {
+          totals[payment.method] += payment.amount;
+        }
+      }
+
+      // Log any discrepancies
+      if (Math.abs(totals.CASH - decryptedCashBalance) > 1) {
+        this.logger.warn(
+          `Cash balance discrepancy: DB shows ${decryptedCashBalance}, payments total ${totals.CASH}`,
+        );
+      }
+      if (Math.abs(totals.CARD - decryptedCardBalance) > 1) {
+        this.logger.warn(
+          `Card balance discrepancy: DB shows ${decryptedCardBalance}, payments total ${totals.CARD}`,
+        );
+      }
+      if (Math.abs(totals.BANK - decryptedBankBalance) > 1) {
+        this.logger.warn(
+          `Bank balance discrepancy: DB shows ${decryptedBankBalance}, payments total ${totals.BANK}`,
+        );
+      }
+
       return {
         balance: decryptedBalance,
         payments: decryptedPayments,
+        calculatedTotals: totals, // Include calculated totals for comparison
       };
     } catch (error) {
       this.logger.error('Error getting shop balance:', error);

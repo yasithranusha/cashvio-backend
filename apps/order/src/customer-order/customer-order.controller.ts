@@ -16,6 +16,34 @@ export class CustomerOrderController {
 
   constructor(private readonly customerOrderService: CustomerOrderService) {}
 
+  @Get('all/:customerId/history')
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getAllShopsCustomerOrderHistory(
+    @Param('customerId') customerId: string,
+    @Req() req,
+  ) {
+    this.logger.debug(`GET /customer-orders/all/${customerId}/history`);
+
+    return this.customerOrderService.getCustomerOrderHistoryForAllShops(
+      req.user.id,
+      customerId,
+    );
+  }
+
+  @Get('all/:customerId/warranty')
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getAllShopsCustomerWarrantyItems(
+    @Param('customerId') customerId: string,
+    @Req() req,
+  ) {
+    this.logger.debug(`GET /customer-orders/all/${customerId}/warranty`);
+
+    return this.customerOrderService.getCustomerWarrantyItemsForAllShops(
+      req.user.id,
+      customerId,
+    );
+  }
+
   @Get(':customerId/shop/:shopId/history')
   @Roles(Role.SHOP_STAFF)
   async getCustomerOrderHistory(
