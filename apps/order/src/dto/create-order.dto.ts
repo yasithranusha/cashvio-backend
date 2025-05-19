@@ -109,4 +109,16 @@ export class CreateOrderDto {
   @Min(0)
   @IsOptional()
   extraWalletAmount?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  draft?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  sendReceiptEmail?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  print?: boolean;
 }

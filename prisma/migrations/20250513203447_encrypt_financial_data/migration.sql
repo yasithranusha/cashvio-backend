@@ -1,0 +1,19 @@
+-- AlterTable
+ALTER TABLE "items" ALTER COLUMN "brought_price" SET DATA TYPE TEXT,
+ALTER COLUMN "sell_price" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "order_items" ALTER COLUMN "original_price" SET DATA TYPE TEXT,
+ALTER COLUMN "selling_price" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "orders" ALTER COLUMN "subtotal" SET DATA TYPE TEXT,
+ALTER COLUMN "discount" SET DEFAULT '0',
+ALTER COLUMN "discount" SET DATA TYPE TEXT,
+ALTER COLUMN "total" SET DATA TYPE TEXT,
+ALTER COLUMN "paid" SET DATA TYPE TEXT,
+ALTER COLUMN "payment_due" SET DEFAULT '0',
+ALTER COLUMN "payment_due" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "payments" ALTER COLUMN "amount" SET DATA TYPE TEXT;

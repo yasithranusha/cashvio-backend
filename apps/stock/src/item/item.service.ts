@@ -5,7 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@app/common/database/prisma.service';
-import { CreateItemDto, UpdateItemDto, GetItemsDto } from './dto/item.dto';
+import {
+  CreateItemDto,
+  UpdateItemDto,
+  GetItemsDto,
+  ItemCreateInput,
+  ItemUpdateInput,
+} from './dto/item.dto';
 import { Item } from '@prisma/client';
 import { PaginatedResponse } from '@app/common/types/response';
 
@@ -15,7 +21,43 @@ export class ItemService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createItem(createItemDto: CreateItemDto): Promise<Item> {
+  /**
+   * Convert a Prisma Item with string prices to an Item with numeric prices for the API
+   */
+  private mapItemToDto(item: Item): any {
+    return {
+      ...item,
+      broughtPrice: parseFloat(item.broughtPrice),
+      sellPrice: parseFloat(item.sellPrice),
+    };
+  }
+
+  /**
+   * Safely convert number to string, removing any invalid characters
+   */
+  private safeNumberToString(value: number): string {
+    if (value === null || value === undefined) {
+      return '0';
+    }
+    try {
+      // Ensure we're working with a valid number
+      const numValue = Number(value);
+      if (isNaN(numValue)) {
+        this.logger.warn(`Invalid number value: ${value}, using 0 instead`);
+        return '0';
+      }
+
+      // Use parseFloat to clean the number and then format with 2 decimal places
+      // This avoids any binary representation issues that might include null bytes
+      return parseFloat(numValue.toFixed(6)).toString();
+    } catch (error) {
+      this.logger.warn(`Error converting number to string: ${error.message}`);
+      // Return a safe default value if conversion fails
+      return '0';
+    }
+  }
+
+  async createItem(createItemDto: CreateItemDto): Promise<any> {
     this.logger.debug(`Creating item: ${JSON.stringify(createItemDto)}`);
 
     try {
@@ -38,24 +80,28 @@ export class ItemService {
         throw new BadRequestException('Barcode already exists');
       }
 
+      // Convert numeric prices to strings for Prisma using the safe conversion
+      const itemData: ItemCreateInput = {
+        barcode: createItemDto.barcode,
+        broughtPrice: this.safeNumberToString(createItemDto.broughtPrice),
+        sellPrice: this.safeNumberToString(createItemDto.sellPrice),
+        warrantyPeriod: createItemDto.warrantyPeriod,
+        productId: createItemDto.productId,
+      };
+
       const item = await this.prisma.item.create({
-        data: {
-          barcode: createItemDto.barcode,
-          broughtPrice: createItemDto.broughtPrice,
-          sellPrice: createItemDto.sellPrice,
-          warrantyPeriod: createItemDto.warrantyPeriod,
-          productId: createItemDto.productId,
-        },
+        data: itemData,
       });
 
-      return item;
+      // Convert string prices to numeric for API response
+      return this.mapItemToDto(item);
     } catch (error) {
       this.logger.error(`Error creating item: ${error.message}`, error.stack);
       throw error;
     }
   }
 
-  async getItems(query: GetItemsDto): Promise<PaginatedResponse<Item>> {
+  async getItems(query: GetItemsDto): Promise<PaginatedResponse<any>> {
     this.logger.debug(`Getting items for product ${query.productId}`);
 
     try {
@@ -84,8 +130,11 @@ export class ItemService {
         }),
       ]);
 
+      // Convert string prices to numeric for API response
+      const mappedItems = items.map((item) => this.mapItemToDto(item));
+
       return {
-        data: items,
+        data: mappedItems,
         pagination: {
           total,
           page,
@@ -99,7 +148,7 @@ export class ItemService {
     }
   }
 
-  async getItemById(id: string): Promise<Item> {
+  async getItemById(id: string): Promise<any> {
     this.logger.debug(`Getting item ${id}`);
 
     try {
@@ -114,14 +163,15 @@ export class ItemService {
         throw new NotFoundException('Item not found');
       }
 
-      return item;
+      // Convert string prices to numeric for API response
+      return this.mapItemToDto(item);
     } catch (error) {
       this.logger.error(`Error getting item: ${error.message}`, error.stack);
       throw error;
     }
   }
 
-  async updateItem(id: string, updateItemDto: UpdateItemDto): Promise<Item> {
+  async updateItem(id: string, updateItemDto: UpdateItemDto): Promise<any> {
     this.logger.debug(`Updating item ${id}: ${JSON.stringify(updateItemDto)}`);
 
     try {
@@ -145,19 +195,41 @@ export class ItemService {
         }
       }
 
+      // Prepare update data, converting price fields to strings
+      const updateData: ItemUpdateInput = {};
+
+      if (updateItemDto.barcode !== undefined) {
+        updateData.barcode = updateItemDto.barcode;
+      }
+
+      if (updateItemDto.broughtPrice !== undefined) {
+        updateData.broughtPrice = this.safeNumberToString(
+          updateItemDto.broughtPrice,
+        );
+      }
+
+      if (updateItemDto.sellPrice !== undefined) {
+        updateData.sellPrice = this.safeNumberToString(updateItemDto.sellPrice);
+      }
+
+      if (updateItemDto.warrantyPeriod !== undefined) {
+        updateData.warrantyPeriod = updateItemDto.warrantyPeriod;
+      }
+
       const updatedItem = await this.prisma.item.update({
         where: { id },
-        data: updateItemDto,
+        data: updateData,
       });
 
-      return updatedItem;
+      // Convert string prices to numeric for API response
+      return this.mapItemToDto(updatedItem);
     } catch (error) {
       this.logger.error(`Error updating item: ${error.message}`, error.stack);
       throw error;
     }
   }
 
-  async deleteItem(id: string): Promise<Item> {
+  async deleteItem(id: string): Promise<any> {
     this.logger.debug(`Deleting item ${id}`);
 
     try {
@@ -169,9 +241,12 @@ export class ItemService {
         throw new NotFoundException('Item not found');
       }
 
-      return this.prisma.item.delete({
+      const deletedItem = await this.prisma.item.delete({
         where: { id },
       });
+
+      // Convert string prices to numeric for API response
+      return this.mapItemToDto(deletedItem);
     } catch (error) {
       this.logger.error(`Error deleting item: ${error.message}`, error.stack);
       throw error;
