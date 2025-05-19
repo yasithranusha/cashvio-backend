@@ -154,14 +154,13 @@ model ProductDiscount {
 model Item {
   id             String      @id @default(uuid())
   barcode        String      @unique
-  broughtPrice   Float       @map("brought_price")
-  sellPrice      Float       @map("sell_price")
+  broughtPrice   String      @map("brought_price")
+  sellPrice      String      @map("sell_price")
   warrantyPeriod DateTime?   @map("warranty_period")
   productId      String      @map("product_id")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
   product        Product     @relation(fields: [productId], references: [id])
-  orderItems     OrderItem[]
 
   @@index([productId])
   @@map("items")
@@ -239,12 +238,12 @@ model Order {
   shopId       String       @map("shop_id")
   customerId   String?      @map("customer_id")
   status       OrderStatus  @default(PENDING)
-  subtotal     Float
-  discount     Float        @default(0)
+  subtotal     String
+  discount     String       @default("0")
   discountType DiscountType @default(FIXED) @map("discount_type")
-  total        Float
-  paid         Float
-  paymentDue   Float        @default(0) @map("payment_due")
+  total        String
+  paid         String
+  paymentDue   String       @default("0") @map("payment_due")
   note         String?
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
@@ -252,6 +251,7 @@ model Order {
   customer     User?        @relation(fields: [customerId], references: [id])
   shop         Shop         @relation(fields: [shopId], references: [id])
   payments     Payment[]
+  walletTransactions WalletTransaction[]
 
   @@index([shopId])
   @@index([customerId])
@@ -266,11 +266,10 @@ model OrderItem {
   productId     String   @map("product_id")
   itemId        String   @map("item_id")
   quantity      Int      @default(1)
-  originalPrice Float    @map("original_price")
-  sellingPrice  Float    @map("selling_price")
+  originalPrice String   @map("original_price")
+  sellingPrice  String   @map("selling_price")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
-  item          Item     @relation(fields: [itemId], references: [id])
   order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product       Product  @relation(fields: [productId], references: [id])
 
@@ -283,7 +282,7 @@ model OrderItem {
 model Payment {
   id        String        @id @default(uuid())
   orderId   String        @map("order_id")
-  amount    Float
+  amount    String
   method    PaymentMethod
   reference String?
   createdAt DateTime      @default(now()) @map("created_at")
@@ -304,11 +303,31 @@ model CustomerWallet {
   updatedAt     DateTime @updatedAt @map("updated_at")
   customer      User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  transactions  WalletTransaction[]
 
   @@id([customerId, shopId])
   @@index([customerId])
   @@index([shopId])
   @@map("customer_wallets")
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  shopId      String   @map("shop_id")
+  orderId     String?  @map("order_id")
+  amount      String   // Positive for additions, negative for deductions
+  type        TransactionType
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  wallet      CustomerWallet @relation(fields: [customerId, shopId], references: [customerId, shopId], onDelete: Cascade)
+  order       Order?    @relation(fields: [orderId], references: [id])
+
+  @@index([customerId])
+  @@index([shopId])
+  @@index([orderId])
+  @@map("wallet_transactions")
 }
 
 model ShopBalance {
@@ -345,6 +364,7 @@ enum Role {
 }
 
 enum OrderStatus {
+  DRAFT
   PENDING
   COMPLETED
   CANCELLED
@@ -361,4 +381,12 @@ enum PaymentMethod {
   CARD
   BANK
   WALLET
+}
+
+enum TransactionType {
+  ORDER_PAYMENT
+  DUE_PAYMENT
+  EXTRA_PAYMENT
+  LOYALTY_POINTS
+  REFUND
 }
