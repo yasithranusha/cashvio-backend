@@ -11,7 +11,12 @@ import {
   Patch,
 } from '@nestjs/common';
 import { ShopService } from './shop.service';
-import { CreateShopDto, GetShopsDto, UpdateShopDto } from './dto/shop.dto';
+import {
+  CreateShopDto,
+  GetShopCustomersDto,
+  GetShopsDto,
+  UpdateShopDto,
+} from './dto/shop.dto';
 import { Roles } from '../decorators/roles.decorator';
 import { Role, Shop } from '@prisma/client';
 import { PaginatedResponse } from '@app/common/types/response';
@@ -66,5 +71,15 @@ export class ShopController {
     this.logger.debug(`PATCH /shops/${id}/set-default`);
     await this.shopService.setDefaultShop(req.user.id, id);
     return { message: 'Default shop updated successfully' };
+  }
+
+  @Get(':id/customers')
+  async getShopCustomers(
+    @Param('id') id: string,
+    @Query() query: GetShopCustomersDto,
+    @Req() req,
+  ) {
+    this.logger.debug(`GET /shops/${id}/customers`, query);
+    return this.shopService.getShopCustomers(id, req.user.id, query);
   }
 }

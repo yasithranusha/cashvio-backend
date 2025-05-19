@@ -4,10 +4,16 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateShopDto, GetShopsDto, UpdateShopDto } from './dto/shop.dto';
+import {
+  CreateShopDto,
+  GetShopCustomersDto,
+  GetShopsDto,
+  UpdateShopDto,
+} from './dto/shop.dto';
 import { PrismaService } from '@app/common/database/prisma.service';
 import { PaginatedResponse } from '@app/common/types/response';
 import { Role, Shop } from '@prisma/client';
+import { userSelectFeilds } from '../types/user';
 
 @Injectable()
 export class ShopService {
@@ -201,6 +207,98 @@ export class ShopService {
     } catch (error) {
       this.logger.error(
         `Error setting default shop: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async getShopCustomers(
+    shopId: string,
+    userId: string,
+    dto: GetShopCustomersDto,
+  ) {
+    this.logger.debug(
+      `Getting customers for shop ${shopId} requested by user ${userId}`,
+    );
+
+    try {
+      // Verify user has access to this shop
+      const userShop = await this.prisma.userShop.findUnique({
+        where: {
+          userId_shopId: {
+            userId,
+            shopId,
+          },
+        },
+      });
+
+      if (!userShop) {
+        throw new BadRequestException('You do not have access to this shop');
+      }
+
+      const page = dto.page || 1;
+      const limit = dto.limit || 10;
+      const skip = (page - 1) * limit;
+
+      // Get unique customers who have placed orders with this shop
+      const [customers, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where: {
+            orders: {
+              some: {
+                shopId: shopId,
+              },
+            },
+          },
+          select: {
+            ...userSelectFeilds,
+            _count: {
+              select: {
+                orders: {
+                  where: {
+                    shopId: shopId,
+                  },
+                },
+              },
+            },
+          },
+          skip: skip,
+          take: limit,
+          orderBy: {
+            createdAt: 'desc',
+          },
+        }),
+        this.prisma.user.count({
+          where: {
+            orders: {
+              some: {
+                shopId: shopId,
+              },
+            },
+          },
+        }),
+      ]);
+
+      // Transform the data to include only order count
+      const customerData = customers.map((customer) => ({
+        ...customer,
+        orderCount: customer._count.orders,
+        _count: undefined, // Remove the _count property
+      }));
+
+      return {
+        data: customerData,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error fetching shop customers: ${error.message}`,
         error.stack,
       );
       throw error;

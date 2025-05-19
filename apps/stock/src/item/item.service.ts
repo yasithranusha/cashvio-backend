@@ -254,15 +254,52 @@ export class ItemService {
   }
 
   async getProductShopId(productId: string): Promise<string> {
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-      select: { shopId: true },
-    });
+    this.logger.debug(`Getting shop ID for product ${productId}`);
 
-    if (!product) {
-      throw new NotFoundException('Product not found');
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+        select: { shopId: true },
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      return product.shopId;
+    } catch (error) {
+      this.logger.error(
+        `Error getting product shop ID: ${error.message}`,
+        error.stack,
+      );
+      throw error;
     }
+  }
 
-    return product.shopId;
+  async getItemByBarcode(barcode: string): Promise<any> {
+    this.logger.debug(`Finding item by barcode ${barcode}`);
+
+    try {
+      const item = await this.prisma.item.findUnique({
+        where: { barcode },
+        include: {
+          product: {
+          },
+        },
+      });
+
+      if (!item) {
+        throw new NotFoundException(`Item with barcode ${barcode} not found`);
+      }
+
+      // Convert string prices to numeric for API response
+      return this.mapItemToDto(item);
+    } catch (error) {
+      this.logger.error(
+        `Error finding item by barcode: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 }
