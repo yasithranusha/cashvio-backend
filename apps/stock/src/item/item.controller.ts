@@ -74,6 +74,29 @@ export class ItemController {
     return this.itemService.getItems(query);
   }
 
+  @Get('barcode/:barcode')
+  @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getItemByBarcode(@Param('barcode') barcode: string, @Req() req) {
+    this.logger.debug(`GET /items/barcode/${barcode}`);
+
+    const item = await this.itemService.getItemByBarcode(barcode);
+
+    // Verify user has access to this shop
+    if (req.user.role !== Role.ADMIN) {
+      const shopId = item.product.shopId;
+      const hasAccess = await this.productService.verifyUserShopAccess(
+        req.user.id,
+        shopId,
+      );
+
+      if (!hasAccess) {
+        throw new ForbiddenException('You do not have access to this item');
+      }
+    }
+
+    return item;
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
   async getItem(@Param('id') id: string, @Req() req) {
