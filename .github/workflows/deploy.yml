@@ -140,6 +140,11 @@ jobs:
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
           AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_KMS_KEY_ID: ${{ secrets.AWS_KMS_KEY_ID }}
+          AWS_KMS_KEY_ALIAS: ${{ secrets.AWS_KMS_KEY_ALIAS }}
         run: |
           # Create docker-compose.yml file with environment variables expanded
           cat > docker-compose.yml << EOF
@@ -230,6 +235,12 @@ jobs:
                 - JWT_SECRET=${JWT_SECRET}
                 - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
                 - RABBIT_MQ_ORDER_QUEUE=order
+                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
+                - AWS_REGION=${AWS_REGION}
+                - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                - AWS_KMS_KEY_ID=${AWS_KMS_KEY_ID}
+                - AWS_KMS_KEY_ALIAS=${AWS_KMS_KEY_ALIAS}
                 - JWT_EXPIRES_IN=24h
               depends_on:
                 rabbitmq:

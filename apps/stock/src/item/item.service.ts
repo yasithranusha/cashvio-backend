@@ -32,6 +32,31 @@ export class ItemService {
     };
   }
 
+  /**
+   * Safely convert number to string, removing any invalid characters
+   */
+  private safeNumberToString(value: number): string {
+    if (value === null || value === undefined) {
+      return '0';
+    }
+    try {
+      // Ensure we're working with a valid number
+      const numValue = Number(value);
+      if (isNaN(numValue)) {
+        this.logger.warn(`Invalid number value: ${value}, using 0 instead`);
+        return '0';
+      }
+
+      // Use parseFloat to clean the number and then format with 2 decimal places
+      // This avoids any binary representation issues that might include null bytes
+      return parseFloat(numValue.toFixed(6)).toString();
+    } catch (error) {
+      this.logger.warn(`Error converting number to string: ${error.message}`);
+      // Return a safe default value if conversion fails
+      return '0';
+    }
+  }
+
   async createItem(createItemDto: CreateItemDto): Promise<any> {
     this.logger.debug(`Creating item: ${JSON.stringify(createItemDto)}`);
 
@@ -55,11 +80,11 @@ export class ItemService {
         throw new BadRequestException('Barcode already exists');
       }
 
-      // Convert numeric prices to strings for Prisma
+      // Convert numeric prices to strings for Prisma using the safe conversion
       const itemData: ItemCreateInput = {
         barcode: createItemDto.barcode,
-        broughtPrice: createItemDto.broughtPrice.toString(),
-        sellPrice: createItemDto.sellPrice.toString(),
+        broughtPrice: this.safeNumberToString(createItemDto.broughtPrice),
+        sellPrice: this.safeNumberToString(createItemDto.sellPrice),
         warrantyPeriod: createItemDto.warrantyPeriod,
         productId: createItemDto.productId,
       };
@@ -178,11 +203,13 @@ export class ItemService {
       }
 
       if (updateItemDto.broughtPrice !== undefined) {
-        updateData.broughtPrice = updateItemDto.broughtPrice.toString();
+        updateData.broughtPrice = this.safeNumberToString(
+          updateItemDto.broughtPrice,
+        );
       }
 
       if (updateItemDto.sellPrice !== undefined) {
-        updateData.sellPrice = updateItemDto.sellPrice.toString();
+        updateData.sellPrice = this.safeNumberToString(updateItemDto.sellPrice);
       }
 
       if (updateItemDto.warrantyPeriod !== undefined) {
