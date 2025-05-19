@@ -20,7 +20,6 @@ import { ReceiptPdfService } from './pdf/receipt-pdf.service';
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
-        PORT: Joi.number().default(3003),
         AWS_REGION: Joi.string().default('us-east-1'),
         AWS_ACCESS_KEY_ID: Joi.string().required(),
         AWS_SECRET_ACCESS_KEY: Joi.string().required(),
