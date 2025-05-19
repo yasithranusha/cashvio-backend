@@ -231,6 +231,7 @@ jobs:
               ports:
                 - "3003:3003"
               environment:
+                - PORT=3003
                 - DATABASE_URL=${DATABASE_URL}
                 - JWT_SECRET=${JWT_SECRET}
                 - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
