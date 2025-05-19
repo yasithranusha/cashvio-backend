@@ -1,1 +1,1 @@
-export const MAILER_SERVICE = 'MAILER_SERVICE';
+export const MAILER_SERVICE = 'MAILER';
