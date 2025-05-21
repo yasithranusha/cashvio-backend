@@ -387,4 +387,139 @@ export class ProductService {
       where: { id: supplierId },
     });
   }
+
+  async getProductWithItems(id: string): Promise<any> {
+    this.logger.debug(`Getting product ${id} with all items`);
+
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id },
+        include: {
+          supplier: true,
+          category: true,
+          subCategory: true,
+          subSubCategory: true,
+          items: true,
+          _count: {
+            select: { items: true },
+          },
+        },
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      // Convert string prices to numeric for items
+      const productWithItems = {
+        ...product,
+        stock: product._count?.items || 0,
+        items: product.items.map((item) => ({
+          ...item,
+          broughtPrice: parseFloat(item.broughtPrice),
+          sellPrice: parseFloat(item.sellPrice),
+        })),
+      };
+
+      return productWithItems;
+    } catch (error) {
+      this.logger.error(
+        `Error getting product with items: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async getProductsWithItems(
+    shopId: string,
+    page?: number,
+    limit?: number,
+    status?: ProductStatus,
+    supplierId?: string,
+    search?: string,
+    categoryId?: string,
+    subCategoryId?: string,
+    subSubCategoryId?: string,
+  ): Promise<PaginatedResponse<any>> {
+    this.logger.debug(`Getting products with items for shop ${shopId}`);
+
+    const where: Prisma.ProductWhereInput = { shopId };
+    if (status) where.status = status;
+    if (supplierId) where.supplierId = supplierId;
+    if (categoryId) where.categoryId = categoryId;
+    if (subCategoryId) where.subCategoryId = subCategoryId;
+    if (subSubCategoryId) where.subSubCategoryId = subSubCategoryId;
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { displayName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    try {
+      const pageValue = page || 1;
+      const limitValue = limit || 10;
+      const skip = (pageValue - 1) * limitValue;
+
+      const paginationOptions = {
+        skip,
+        take: limitValue,
+      };
+
+      const [products, total] = await Promise.all([
+        this.prisma.product.findMany({
+          where,
+          ...paginationOptions,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            supplier: true,
+            category: {
+              select: { id: true, name: true },
+            },
+            subCategory: {
+              select: { id: true, name: true, categoryId: true },
+            },
+            subSubCategory: {
+              select: { id: true, name: true, subCategoryId: true },
+            },
+            items: true,
+            _count: {
+              select: { items: true },
+            },
+          },
+        }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      // Map products to include stock and convert item prices
+      const productsWithItems = products.map((product) => ({
+        ...product,
+        stock: product._count?.items || 0,
+        items: product.items.map((item) => ({
+          ...item,
+          broughtPrice: parseFloat(item.broughtPrice),
+          sellPrice: parseFloat(item.sellPrice),
+        })),
+      }));
+
+      return {
+        data: productsWithItems,
+        pagination: {
+          total,
+          page: pageValue,
+          limit: limitValue,
+          totalPages: limitValue > 0 ? Math.ceil(total / limitValue) : 1,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting products with items: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
 }
