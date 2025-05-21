@@ -119,6 +119,7 @@ jobs:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       - name: Create Docker Compose File
+        working-directory: ${{ github.workspace }}
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           GITHUB_SHA: ${{ github.sha }}
@@ -147,7 +148,7 @@ jobs:
           AWS_KMS_KEY_ALIAS: ${{ secrets.AWS_KMS_KEY_ALIAS }}
         run: |
           mkdir -p docker
-          envsubst < ./docker-compose-template.yml > docker/docker-compose.yml
+          envsubst < docker-compose-template.yml > docker/docker-compose.yml
 
       - name: Deploy to EC2
         env:

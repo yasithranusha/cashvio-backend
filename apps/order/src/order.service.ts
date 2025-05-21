@@ -2391,7 +2391,7 @@ export class OrderService implements OnModuleInit {
           try {
             const balance = parseFloat(await this.decrypt(wallet.balance));
             const loyaltyPoints = parseInt(
-              await this.decrypt(wallet.loyaltyPoints)
+              await this.decrypt(wallet.loyaltyPoints),
             );
             return {
               customerId: wallet.customerId,
