@@ -72,7 +72,8 @@ export class CreateOrderDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
-  items: OrderItemDto[];
+  @IsOptional()
+  items: OrderItemDto[] = [];
 
   @IsNumber()
   @IsOptional()
@@ -87,10 +88,6 @@ export class CreateOrderDto {
   @Type(() => PaymentDto)
   payments: PaymentDto[];
 
-  @IsBoolean()
-  @IsOptional()
-  storeExtraInWallet?: boolean;
-
   @IsString()
   @IsOptional()
   note?: string;
@@ -98,15 +95,9 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   @IsOptional()
-  customDueAmount?: number;
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
   duePaidAmount?: number;
 
   @IsNumber()
-  @Min(0)
   @IsOptional()
   extraWalletAmount?: number;
 
