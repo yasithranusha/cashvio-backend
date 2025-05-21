@@ -551,8 +551,10 @@ export class OrderService implements OnModuleInit {
     let subtotal = 0;
     const orderItemsData = [];
 
-    // Fetch and validate all items first
-    for (const orderItem of createOrderDto.items) {
+    // Fetch and validate all items first if there are any
+    // This allows due-only payments with no items
+    const items = createOrderDto.items || [];
+    for (const orderItem of items) {
       const product = await this.prisma.product.findUnique({
         where: { id: orderItem.productId },
       });
@@ -621,11 +623,13 @@ export class OrderService implements OnModuleInit {
     // Calculate the final total with discount
     const finalTotal = subtotal - discount;
 
-    // Calculate total payment amount
-    const totalPayment = createOrderDto.payments.reduce(
-      (sum, payment) => sum + payment.amount,
-      0,
-    );
+    // Calculate total payment amount (handle empty payments array)
+    const totalPayment = createOrderDto.payments?.length
+      ? createOrderDto.payments.reduce(
+          (sum, payment) => sum + payment.amount,
+          0,
+        )
+      : 0;
 
     // Determine order status
     const orderStatus = createOrderDto.draft
@@ -639,10 +643,14 @@ export class OrderService implements OnModuleInit {
     // Only validate payments for completed orders
     if (orderStatus === OrderStatus.COMPLETED) {
       if (customerId) {
-        // If a custom due amount is specified, use that
-        if (createOrderDto.customDueAmount !== undefined) {
-          paymentDue = createOrderDto.customDueAmount;
-          useWalletToPayDue = true;
+        // Check if there's a negative extraWalletAmount which adds due
+        if (
+          createOrderDto.extraWalletAmount !== undefined &&
+          createOrderDto.extraWalletAmount < 0
+        ) {
+          // Negative extraWalletAmount directly adds to due
+          paymentDue = 0; // We're not applying existing dues
+          // The negative value will be applied to wallet balance later
         } else {
           // Otherwise check if customer has payment due (negative wallet balance)
           const walletBalance = await this.getCustomerWalletBalance(
@@ -664,8 +672,13 @@ export class OrderService implements OnModuleInit {
       }
 
       // Check if payment is sufficient for completed orders
+      // Skip validation if negative extraWalletAmount is specified (unpaid amount goes to wallet as due)
+      const isAddingDueToWallet =
+        createOrderDto.extraWalletAmount !== undefined &&
+        createOrderDto.extraWalletAmount < 0;
       const totalWithDue = finalTotal + paymentDue;
-      if (totalPayment < totalWithDue) {
+
+      if (totalPayment < totalWithDue && !isAddingDueToWallet) {
         throw new BadRequestException(
           `Total payment (${totalPayment}) is less than order total plus dues (${totalWithDue})`,
         );
@@ -729,16 +742,19 @@ export class OrderService implements OnModuleInit {
               paid: encryptedPaid,
               paymentDue: encryptedPaymentDue,
               orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-              orderItems: {
-                create: orderItemsData.map((item, index) => ({
-                  id: crypto.randomUUID(),
-                  productId: item.productId,
-                  itemId: item.itemId,
-                  quantity: item.quantity,
-                  originalPrice: encryptedOrderItems[index][0],
-                  sellingPrice: encryptedOrderItems[index][1],
-                })),
-              },
+              orderItems:
+                orderItemsData.length > 0
+                  ? {
+                      create: orderItemsData.map((item, index) => ({
+                        id: crypto.randomUUID(),
+                        productId: item.productId,
+                        itemId: item.itemId,
+                        quantity: item.quantity,
+                        originalPrice: encryptedOrderItems[index][0],
+                        sellingPrice: encryptedOrderItems[index][1],
+                      })),
+                    }
+                  : undefined,
               payments: {
                 create: createOrderDto.payments.map((payment, index) => ({
                   id: crypto.randomUUID(),
@@ -814,12 +830,7 @@ export class OrderService implements OnModuleInit {
             }
 
             // Add extra payment to wallet if requested and customer exists
-            if (
-              extraPayment > 0 &&
-              customerId &&
-              (createOrderDto.storeExtraInWallet ||
-                createOrderDto.extraWalletAmount !== undefined)
-            ) {
+            if (customerId && createOrderDto.extraWalletAmount !== undefined) {
               await this.updateCustomerWallet(
                 customerId,
                 shopId,
@@ -950,9 +961,30 @@ export class OrderService implements OnModuleInit {
       }
 
       const decryptedOrder = await this.decryptOrderData(completedOrder);
+
+      // Include wallet balance in response if customer exists
+      let walletInfo = null;
+      if (customerId) {
+        try {
+          const wallet = await this.getCustomerWallet(customerId, shopId);
+          walletInfo = {
+            balance: wallet.balance,
+            // Provide clear indicators of due vs credit
+            hasDue: wallet.balance < 0,
+            hasCredit: wallet.balance > 0,
+            dueAmount: wallet.balance < 0 ? Math.abs(wallet.balance) : 0,
+            creditAmount: wallet.balance > 0 ? wallet.balance : 0,
+            loyaltyPoints: wallet.loyaltyPoints,
+          };
+        } catch (error) {
+          this.logger.error('Error fetching wallet info for response:', error);
+        }
+      }
+
       return {
         ...decryptedOrder,
         pdf: pdfBuffer ? pdfBuffer.toString('base64') : null,
+        wallet: walletInfo,
       };
     } catch (error) {
       this.logger.error('Error creating order:', error);
@@ -1392,7 +1424,6 @@ export class OrderService implements OnModuleInit {
         method: PaymentMethod;
         reference?: string;
       }[];
-      storeExtraInWallet?: boolean;
       duePaidAmount?: number;
       extraWalletAmount?: number;
     },
@@ -1558,12 +1589,7 @@ export class OrderService implements OnModuleInit {
           }
 
           // Add extra payment to wallet if requested and customer exists
-          if (
-            extraPayment > 0 &&
-            order.customerId &&
-            (paymentData.storeExtraInWallet ||
-              paymentData.extraWalletAmount !== undefined)
-          ) {
+          if (order.customerId && paymentData.extraWalletAmount !== undefined) {
             await this.updateCustomerWallet(
               order.customerId,
               shopId,
@@ -1764,10 +1790,14 @@ export class OrderService implements OnModuleInit {
             let useWalletToPayDue = false;
 
             if (order.customerId) {
-              // If a custom due amount is specified, use that
-              if (updateOrderDto.customDueAmount !== undefined) {
-                paymentDue = updateOrderDto.customDueAmount;
-                useWalletToPayDue = true;
+              // Check if there's a negative extraWalletAmount which adds due
+              if (
+                updateOrderDto.extraWalletAmount !== undefined &&
+                updateOrderDto.extraWalletAmount < 0
+              ) {
+                // Negative extraWalletAmount directly adds to due
+                paymentDue = 0; // We're not applying existing dues
+                // The negative value will be applied to wallet balance later
               } else {
                 // Otherwise check if customer has payment due (negative wallet balance)
                 const walletBalance = await this.getCustomerWalletBalance(
@@ -1789,8 +1819,12 @@ export class OrderService implements OnModuleInit {
             }
 
             // Check if payment is sufficient
+            const isAddingDueToWallet =
+              updateOrderDto.extraWalletAmount !== undefined &&
+              updateOrderDto.extraWalletAmount < 0;
             const totalWithDue = finalTotal + paymentDue;
-            if (totalPayment < totalWithDue) {
+
+            if (totalPayment < totalWithDue && !isAddingDueToWallet) {
               throw new BadRequestException(
                 `Total payment (${totalPayment}) is less than order total plus dues (${totalWithDue})`,
               );
@@ -1897,14 +1931,12 @@ export class OrderService implements OnModuleInit {
 
             // Add extra payment to wallet if requested and customer exists
             if (
-              extraPayment > 0 &&
               order.customerId &&
-              (updateOrderDto.storeExtraInWallet ||
-                updateOrderDto.extraWalletAmount !== undefined)
+              updateOrderDto.extraWalletAmount !== undefined
             ) {
               await this.updateCustomerWallet(
                 order.customerId,
-                order.shopId,
+                shopId,
                 extraPayment,
                 0,
               );
