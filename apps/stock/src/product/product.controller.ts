@@ -94,12 +94,71 @@ export class ProductController {
     );
   }
 
+  @Get('with-items')
+  @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getProductsWithItems(@Query() query: GetProductsDto, @Req() req) {
+    this.logger.debug('GET /products/with-items', query);
+
+    // Get shop ID from query or default shop
+    const shopId = query.shopId || req.user.defaultShopId;
+
+    if (!shopId) {
+      throw new BadRequestException('Shop ID is required');
+    }
+
+    // Verify user has access to this shop
+    if (req.user.role !== Role.ADMIN) {
+      const hasAccess = await this.productService.verifyUserShopAccess(
+        req.user.id,
+        shopId,
+      );
+
+      if (!hasAccess) {
+        throw new ForbiddenException('You do not have access to this shop');
+      }
+    }
+
+    return this.productService.getProductsWithItems(
+      shopId,
+      query.page,
+      query.limit,
+      query.status,
+      query.supplierId,
+      query.search,
+      query.categoryId,
+      query.subCategoryId,
+      query.subSubCategoryId,
+    );
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
   async getProductById(@Param('id') id: string, @Req() req) {
     this.logger.debug(`GET /products/${id}`);
 
     const product = await this.productService.getProductById(id);
+
+    // Verify user has access to this product's shop
+    if (req.user.role !== Role.ADMIN) {
+      const hasAccess = await this.productService.verifyUserShopAccess(
+        req.user.id,
+        product.shopId,
+      );
+
+      if (!hasAccess) {
+        throw new ForbiddenException('You do not have access to this product');
+      }
+    }
+
+    return product;
+  }
+
+  @Get(':id/items')
+  @Roles(Role.ADMIN, Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getProductWithItems(@Param('id') id: string, @Req() req) {
+    this.logger.debug(`GET /products/${id}/items`);
+
+    const product = await this.productService.getProductWithItems(id);
 
     // Verify user has access to this product's shop
     if (req.user.role !== Role.ADMIN) {
