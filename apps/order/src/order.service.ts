@@ -531,6 +531,12 @@ export class OrderService implements OnModuleInit {
   ): Promise<any> {
     const shopId = await this.getShopForUser(userId, createOrderDto.shopId);
 
+    // Variables for wallet update after transaction
+    let walletUpdateNeeded = false;
+    let walletCustomerId = '';
+    let walletShopId = '';
+    let walletAmount = 0;
+
     // Process customer info
     let customerId = createOrderDto.customerId;
 
@@ -831,21 +837,30 @@ export class OrderService implements OnModuleInit {
 
             // Add extra payment to wallet if requested and customer exists
             if (customerId && createOrderDto.extraWalletAmount !== undefined) {
-              await this.updateCustomerWallet(
-                customerId,
-                shopId,
-                extraPayment,
-                0,
-              );
+              // Store the values to update wallet after transaction completes
+              walletUpdateNeeded = true;
+              walletCustomerId = customerId;
+              walletShopId = shopId;
+              walletAmount = extraPayment;
             }
           }
 
           return order;
         },
         {
-          timeout: 30000, // Increase timeout to 30 seconds
+          timeout: 120000, // Increase timeout to 120 seconds
         },
       );
+
+      // Update customer wallet outside the transaction if needed
+      if (walletUpdateNeeded) {
+        await this.updateCustomerWallet(
+          walletCustomerId,
+          walletShopId,
+          walletAmount,
+          0,
+        );
+      }
 
       // Delete items from inventory immediately after transaction completes for completed orders
       if (result.status === OrderStatus.COMPLETED) {
@@ -1429,6 +1444,12 @@ export class OrderService implements OnModuleInit {
     },
   ): Promise<any> {
     try {
+      // Variables for wallet update after transaction
+      let walletUpdateNeeded = false;
+      let walletCustomerId = '';
+      let walletShopId = '';
+      let walletAmount = 0;
+
       // Get the order and verify it's a draft
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -1590,21 +1611,30 @@ export class OrderService implements OnModuleInit {
 
           // Add extra payment to wallet if requested and customer exists
           if (order.customerId && paymentData.extraWalletAmount !== undefined) {
-            await this.updateCustomerWallet(
-              order.customerId,
-              shopId,
-              extraPayment,
-              0,
-            );
+            // Store the values to update wallet after transaction completes
+            walletUpdateNeeded = true;
+            walletCustomerId = order.customerId;
+            walletShopId = shopId;
+            walletAmount = extraPayment;
           }
 
           return updatedOrder;
         },
         {
-          // Increase transaction timeout to 30 seconds to accommodate encryption operations
-          timeout: 30000,
+          // Increase transaction timeout to 120 seconds to accommodate encryption operations
+          timeout: 120000,
         },
       );
+
+      // Update customer wallet outside the transaction if needed
+      if (walletUpdateNeeded) {
+        await this.updateCustomerWallet(
+          walletCustomerId,
+          walletShopId,
+          walletAmount,
+          0,
+        );
+      }
 
       // Delete items from inventory immediately after transaction completes
       this.logger.debug(
@@ -1645,6 +1675,12 @@ export class OrderService implements OnModuleInit {
     updateOrderDto: CreateOrderDto,
   ): Promise<any> {
     try {
+      // Variables for wallet update after transaction
+      let walletUpdateNeeded = false;
+      let walletCustomerId = '';
+      let walletShopId = '';
+      let walletAmount = 0;
+
       // Get the order
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -1934,12 +1970,11 @@ export class OrderService implements OnModuleInit {
               order.customerId &&
               updateOrderDto.extraWalletAmount !== undefined
             ) {
-              await this.updateCustomerWallet(
-                order.customerId,
-                shopId,
-                extraPayment,
-                0,
-              );
+              // Store the values to update wallet after transaction completes
+              walletUpdateNeeded = true;
+              walletCustomerId = order.customerId;
+              walletShopId = shopId;
+              walletAmount = extraPayment;
             }
           } else {
             // Just updating the draft order
@@ -2095,10 +2130,20 @@ export class OrderService implements OnModuleInit {
           return updatedOrder;
         },
         {
-          // Increase transaction timeout to 30 seconds to accommodate encryption operations
-          timeout: 30000,
+          // Increase transaction timeout to 120 seconds to accommodate encryption operations
+          timeout: 120000,
         },
       );
+
+      // Update customer wallet outside the transaction if needed
+      if (walletUpdateNeeded) {
+        await this.updateCustomerWallet(
+          walletCustomerId,
+          walletShopId,
+          walletAmount,
+          0,
+        );
+      }
 
       // If we completed a draft order, delete items from inventory immediately after transaction completes
       if (isCompletingDraft) {
