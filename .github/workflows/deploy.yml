@@ -146,119 +146,14 @@ jobs:
           AWS_KMS_KEY_ID: ${{ secrets.AWS_KMS_KEY_ID }}
           AWS_KMS_KEY_ALIAS: ${{ secrets.AWS_KMS_KEY_ALIAS }}
         run: |
-          # Create docker-compose.yml file with environment variables expanded
-          cat > docker-compose.yml << EOF
-          version: '3.8'
-
-          services:
-            rabbitmq:
-              image: rabbitmq:3-management
-              ports:
-                - "5672:5672"
-                - "15672:15672"
-              environment:
-                - RABBITMQ_DEFAULT_USER=guest
-                - RABBITMQ_DEFAULT_PASS=guest
-              volumes:
-                - rabbitmq_data:/var/lib/rabbitmq
-              healthcheck:
-                test: ["CMD", "rabbitmqctl", "status"]
-                interval: 10s
-                timeout: 5s
-                retries: 5
-
-            auth:
-              image: ${DOCKERHUB_USERNAME}/cashvio-auth:${GITHUB_SHA}
-              ports:
-                - "3000:3000"
-              environment:
-                - DATABASE_URL=${DATABASE_URL}
-                - JWT_SECRET=${JWT_SECRET}
-                - REFRESH_JWT_SECRET=${REFRESH_JWT_SECRET}
-                - FORGET_PASSWORD_SECRET=${FORGET_PASSWORD_SECRET}
-                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
-                - RABBIT_MQ_AUTH_QUEUE=auth
-                - JWT_EXPIRES_IN=24h
-                - REFRESH_JWT_EXPIRES_IN=7d
-                - REFRESH_JWT_EXTENDED_EXPIRES_IN=30d
-                - FORGET_PASSWORD_EXPIRES_IN=2h
-                - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-                - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-                - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
-                - CUSTOMER_CLIENT_URL=${CUSTOMER_CLIENT_URL}
-                - ADMIN_CLIENT_URL=${ADMIN_CLIENT_URL}
-                - SHOP_CLIENT_URL=${SHOP_CLIENT_URL}
-              depends_on:
-                rabbitmq:
-                  condition: service_healthy
-
-            mailer-uploader:
-              image: ${DOCKERHUB_USERNAME}/cashvio-mailer-uploader:${GITHUB_SHA}
-              ports:
-                - "3001:3001"
-              environment:
-                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
-                - MAILER_EMAIL=${MAILER_EMAIL}
-                - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
-                - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
-                - OAUTH_REFRESH_TOKEN=${OAUTH_REFRESH_TOKEN}
-                - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
-                - AWS_SECRET_KEY=${AWS_SECRET_KEY}
-                - AWS_S3_REGION=${AWS_S3_REGION}
-                - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
-              depends_on:
-                rabbitmq:
-                  condition: service_healthy
-
-            stock:
-              image: ${DOCKERHUB_USERNAME}/cashvio-stock:${GITHUB_SHA}
-              ports:
-                - "3002:3002"
-              environment:
-                - DATABASE_URL=${DATABASE_URL}
-                - JWT_SECRET=${JWT_SECRET}
-                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                - RABBIT_MQ_STOCK_QUEUE=stock
-                - JWT_EXPIRES_IN=24h
-              depends_on:
-                rabbitmq:
-                  condition: service_healthy
-
-            order:
-              image: ${DOCKERHUB_USERNAME}/cashvio-order:${GITHUB_SHA}
-              ports:
-                - "3003:3003"
-              environment:
-                - PORT=3003
-                - DATABASE_URL=${DATABASE_URL}
-                - JWT_SECRET=${JWT_SECRET}
-                - RABBIT_MQ_URI=amqp://guest:guest@rabbitmq:5672
-                - RABBIT_MQ_ORDER_QUEUE=order
-                - RABBIT_MQ_MAILER_QUEUE=mailer-uploader
-                - AWS_REGION=${AWS_REGION}
-                - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                - AWS_KMS_KEY_ID=${AWS_KMS_KEY_ID}
-                - AWS_KMS_KEY_ALIAS=${AWS_KMS_KEY_ALIAS}
-                - JWT_EXPIRES_IN=24h
-              depends_on:
-                rabbitmq:
-                  condition: service_healthy
-
-          volumes:
-            rabbitmq_data:
-          EOF
-
-          # Skip validation - no need for docker-compose command
+          mkdir -p docker
+          envsubst < ./docker-compose-template.yml > docker/docker-compose.yml
 
       - name: Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ubuntu
         run: |
-          # Create SSH config to keep connection alive
           mkdir -p ~/.ssh
           echo "Host *
             ServerAliveInterval 60
@@ -266,30 +161,24 @@ jobs:
           " > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-          # Transfer docker-compose file to EC2
-          scp -o StrictHostKeyChecking=no docker-compose.yml $EC2_USER@$EC2_HOST:~/cashvio-backend/
+          # Transfer file
+          scp -o StrictHostKeyChecking=no docker/docker-compose.yml $EC2_USER@$EC2_HOST:~/cashvio-backend/
 
-          # Execute deployment commands on EC2
+          # Deploy on EC2
           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-            # Set error handling
             set -e
-            
-            # Create project directory if it doesn't exist
             mkdir -p ~/cashvio-backend
             cd ~/cashvio-backend
-            
-            # Pull latest images and start containers
+
+            echo "Pulling images..."
             sudo docker-compose pull
-            sudo docker-compose up -d
-            
-            # Clean up old images to save disk space
-            sudo docker system prune -af --volumes
-            
-            # Free up disk space
-            sudo apt-get clean
-            sudo apt-get autoremove -y
-            
-            # Show running containers
+
+            echo "Creating containers..."
+            sudo docker-compose create
+
+            echo "Starting services..."
+            sudo docker-compose start
+
             echo "Running containers:"
             sudo docker ps
           EOF
