@@ -113,7 +113,6 @@ jobs:
     environment: production
 
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -175,14 +174,10 @@ jobs:
             mkdir -p ~/cashvio-backend
             cd ~/cashvio-backend
 
-            echo "Pulling images..."
+            echo "Pulling and starting services..."
+            sudo docker-compose down
             sudo docker-compose pull
-
-            echo "Creating containers..."
-            sudo docker-compose create
-
-            echo "Starting services..."
-            sudo docker-compose start
+            sudo docker-compose up -d
 
             echo "Running containers:"
             sudo docker ps
