@@ -237,48 +237,67 @@ export class ShopService {
         throw new BadRequestException('You do not have access to this shop');
       }
 
+      // Check if pagination parameters are provided
+      const shouldPaginate = dto.page !== undefined || dto.limit !== undefined;
       const page = dto.page || 1;
       const limit = dto.limit || 10;
-      const skip = (page - 1) * limit;
 
-      // Get unique customers who have placed orders with this shop
-      const [customers, total] = await Promise.all([
-        this.prisma.user.findMany({
-          where: {
+      // Get total count for both paginated and non-paginated queries
+      const total = await this.prisma.user.count({
+        where: {
+          orders: {
+            some: {
+              shopId: shopId,
+            },
+          },
+        },
+      });
+
+      // Common select and where options
+      const selectOptions = {
+        ...userSelectFeilds,
+        _count: {
+          select: {
             orders: {
-              some: {
+              where: {
                 shopId: shopId,
               },
             },
           },
-          select: {
-            ...userSelectFeilds,
-            _count: {
-              select: {
-                orders: {
-                  where: {
-                    shopId: shopId,
-                  },
-                },
-              },
-            },
+        },
+      };
+
+      const whereOptions = {
+        orders: {
+          some: {
+            shopId: shopId,
           },
+        },
+      };
+
+      let customers;
+
+      // Fetch data with or without pagination based on shouldPaginate flag
+      if (shouldPaginate) {
+        const skip = (page - 1) * limit;
+        customers = await this.prisma.user.findMany({
+          where: whereOptions,
+          select: selectOptions,
           skip: skip,
           take: limit,
           orderBy: {
             createdAt: 'desc',
           },
-        }),
-        this.prisma.user.count({
-          where: {
-            orders: {
-              some: {
-                shopId: shopId,
-              },
-            },
+        });
+      } else {
+        customers = await this.prisma.user.findMany({
+          where: whereOptions,
+          select: selectOptions,
+          orderBy: {
+            createdAt: 'desc',
           },
-        }),
-      ]);
+        });
+      }
 
       // Transform the data to include only order count
       const customerData = customers.map((customer) => ({
@@ -287,15 +306,21 @@ export class ShopService {
         _count: undefined, // Remove the _count property
       }));
 
-      return {
-        data: customerData,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+      // Return with or without pagination info based on shouldPaginate flag
+      if (shouldPaginate) {
+        return {
+          data: customerData,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
+      }
+
+      // Return just the data if we're not paginating
+      return { data: customerData };
     } catch (error) {
       this.logger.error(
         `Error fetching shop customers: ${error.message}`,
