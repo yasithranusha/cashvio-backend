@@ -441,7 +441,7 @@ export class ProductService {
     categoryId?: string,
     subCategoryId?: string,
     subSubCategoryId?: string,
-  ): Promise<PaginatedResponse<any>> {
+  ): Promise<PaginatedResponse<any> | { data: any[] }> {
     this.logger.debug(`Getting products with items for shop ${shopId}`);
 
     const where: Prisma.ProductWhereInput = { shopId };
@@ -460,39 +460,51 @@ export class ProductService {
     }
 
     try {
+      // Check if pagination parameters are provided
+      const shouldPaginate = page !== undefined || limit !== undefined;
       const pageValue = page || 1;
       const limitValue = limit || 10;
-      const skip = (pageValue - 1) * limitValue;
 
-      const paginationOptions = {
-        skip,
-        take: limitValue,
+      // Get total count for both paginated and non-paginated queries
+      const total = await this.prisma.product.count({ where });
+
+      // Common include and where options
+      const includeOptions = {
+        supplier: true,
+        category: {
+          select: { id: true, name: true },
+        },
+        subCategory: {
+          select: { id: true, name: true, categoryId: true },
+        },
+        subSubCategory: {
+          select: { id: true, name: true, subCategoryId: true },
+        },
+        items: true,
+        _count: {
+          select: { items: true },
+        },
       };
 
-      const [products, total] = await Promise.all([
-        this.prisma.product.findMany({
+      let products;
+
+      // Fetch data with or without pagination based on shouldPaginate flag
+      if (shouldPaginate) {
+        const skip = (pageValue - 1) * limitValue;
+        products = await this.prisma.product.findMany({
           where,
-          ...paginationOptions,
+          skip,
+          take: limitValue,
           orderBy: { createdAt: 'desc' },
-          include: {
-            supplier: true,
-            category: {
-              select: { id: true, name: true },
-            },
-            subCategory: {
-              select: { id: true, name: true, categoryId: true },
-            },
-            subSubCategory: {
-              select: { id: true, name: true, subCategoryId: true },
-            },
-            items: true,
-            _count: {
-              select: { items: true },
-            },
-          },
-        }),
-        this.prisma.product.count({ where }),
-      ]);
+          include: includeOptions,
+        });
+      } else {
+        products = await this.prisma.product.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          include: includeOptions,
+        });
+      }
 
       // Map products to include stock and convert item prices
       const productsWithItems = products.map((product) => ({
@@ -505,15 +517,21 @@ export class ProductService {
         })),
       }));
 
-      return {
-        data: productsWithItems,
-        pagination: {
-          total,
-          page: pageValue,
-          limit: limitValue,
-          totalPages: limitValue > 0 ? Math.ceil(total / limitValue) : 1,
-        },
-      };
+      // Return with or without pagination info based on shouldPaginate flag
+      if (shouldPaginate) {
+        return {
+          data: productsWithItems,
+          pagination: {
+            total,
+            page: pageValue,
+            limit: limitValue,
+            totalPages: limitValue > 0 ? Math.ceil(total / limitValue) : 1,
+          },
+        };
+      }
+
+      // Return just the data if we're not paginating
+      return { data: productsWithItems };
     } catch (error) {
       this.logger.error(
         `Error getting products with items: ${error.message}`,
