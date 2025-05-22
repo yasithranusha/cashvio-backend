@@ -7,7 +7,10 @@ import {
   Delete,
   Put,
   Query,
+  Request,
 } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { Roles } from '@app/common';
 import { CashflowService } from './cashflow.service';
 import {
   CreateTransactionDto,
@@ -27,13 +30,22 @@ export class CashflowController {
 
   // Cash flow summary
   @Get('summary/:shopId')
-  async getCashflowSummary(@Param('shopId') shopId: string) {
-    return this.cashflowService.getCashflowSummary(shopId);
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getCashFlowSummary(@Request() req, @Param('shopId') shopId: string) {
+    return this.cashflowService.getCashFlowSummary(shopId);
   }
 
+  // Note: The following endpoints have been moved to CashFlowIntegrationService in the order module
+  // and are commented out here to avoid duplicate functionality.
+
+  /* 
   // Comprehensive cash flow report
   @Get('comprehensive/:shopId')
-  async getComprehensiveCashFlow(@Param('shopId') shopId: string) {
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  async getComprehensiveCashFlow(
+    @Request() req,
+    @Param('shopId') shopId: string,
+  ) {
     return this.cashflowService.getComprehensiveCashFlow(shopId);
   }
 
@@ -41,33 +53,6 @@ export class CashflowController {
   @Get('customer-dues/:shopId')
   async getCustomerDuesAsAssets(@Param('shopId') shopId: string) {
     return this.cashflowService.getCustomerDuesAsAssets(shopId);
-  }
-
-  // Sync order payment with cash flow
-  @Post('sync/order-payment')
-  async syncOrderPaymentWithCashFlow(
-    @Body()
-    data: {
-      orderId: string;
-      payment: {
-        id: string;
-        amount: string;
-        method: string;
-        reference?: string;
-        createdAt: Date;
-      };
-      shopId: string;
-      orderNumber: string;
-      customerId?: string;
-    },
-  ) {
-    return this.cashflowService.syncOrderPaymentWithCashFlow(
-      data.orderId,
-      data.payment,
-      data.shopId,
-      data.orderNumber,
-      data.customerId,
-    );
   }
 
   // Sync due payment with cash flow
@@ -88,6 +73,7 @@ export class CashflowController {
       data.date,
     );
   }
+  */
 
   // Transaction endpoints
   @Post('transactions')

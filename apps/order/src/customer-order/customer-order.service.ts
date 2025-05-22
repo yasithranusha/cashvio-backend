@@ -353,22 +353,84 @@ export class CustomerOrderService {
    */
   async getCustomerOrderHistoryForAllShops(userId: string, customerId: string) {
     try {
-      // Get all shops the user has access to
-      const userShops = await this.prisma.userShop.findMany({
-        where: { userId },
-        select: {
-          shopId: true,
-          shop: {
+      this.logger.debug(
+        `Getting order history for all shops. UserId: ${userId}, CustomerId: ${customerId}`,
+      );
+
+      // First, get the user's role
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+
+      let userShops = [];
+
+      // If the user is a customer and looking up their own data (self-lookup)
+      if (user?.role === 'CUSTOMER' && userId === customerId) {
+        this.logger.debug(`User is a customer looking up their own data`);
+
+        // Find all shops where this customer has either orders or a wallet
+        const shopsWithOrders = await this.prisma.order.findMany({
+          where: { customerId: userId },
+          distinct: ['shopId'],
+          select: { shopId: true },
+        });
+
+        const shopsWithWallets = await this.prisma.customerWallet.findMany({
+          where: { customerId: userId },
+          select: { shopId: true },
+        });
+
+        // Combine shop IDs and remove duplicates
+        const shopIdsSet = new Set([
+          ...shopsWithOrders.map((o) => o.shopId),
+          ...shopsWithWallets.map((w) => w.shopId),
+        ]);
+        const shopIds = Array.from(shopIdsSet);
+
+        // Get shop details
+        if (shopIds.length > 0) {
+          const shops = await this.prisma.shop.findMany({
+            where: { id: { in: shopIds } },
             select: {
               id: true,
               businessName: true,
               shopLogo: true,
             },
+          });
+
+          userShops = shops.map((shop) => ({
+            shopId: shop.id,
+            shop: shop,
+          }));
+        }
+
+        this.logger.debug(
+          `Found ${userShops.length} shops for customer ${userId}`,
+        );
+      } else {
+        // Regular case for shop owners/staff
+        userShops = await this.prisma.userShop.findMany({
+          where: { userId },
+          select: {
+            shopId: true,
+            shop: {
+              select: {
+                id: true,
+                businessName: true,
+                shopLogo: true,
+              },
+            },
           },
-        },
-      });
+        });
+
+        this.logger.debug(
+          `Found ${userShops.length} shops for userId: ${userId}`,
+        );
+      }
 
       if (!userShops || userShops.length === 0) {
+        this.logger.debug(`No shops found for userId: ${userId}`);
         return {
           customer: null,
           shopData: [],
@@ -376,6 +438,7 @@ export class CustomerOrderService {
       }
 
       const shopIds = userShops.map((userShop) => userShop.shopId);
+      this.logger.debug(`Shop IDs: ${shopIds.join(', ')}`);
 
       // Get customer details
       const customer = await this.prisma.user.findUnique({
@@ -389,19 +452,29 @@ export class CustomerOrderService {
       });
 
       if (!customer) {
+        this.logger.debug(`Customer not found: ${customerId}`);
         return {
           customer: null,
           shopData: [],
         };
       }
 
+      this.logger.debug(`Found customer: ${customer.name} (${customer.id})`);
+
       // Get data from each shop
       const shopData = await Promise.all(
         userShops.map(async (userShop) => {
           try {
+            this.logger.debug(
+              `Getting order history for shop: ${userShop.shopId}`,
+            );
             const orderHistory = await this.getCustomerOrderHistory(
               customerId,
               userShop.shopId,
+            );
+
+            this.logger.debug(
+              `Shop ${userShop.shopId}: orders=${orderHistory.orders ? orderHistory.orders.length : 0}, has wallet=${!!orderHistory.wallet}`,
             );
 
             return {
@@ -428,15 +501,10 @@ export class CustomerOrderService {
         }),
       );
 
+      // Return all shops regardless of whether they have data
       return {
         customer,
-        shopData: shopData.filter(
-          (shop) =>
-            shop.orderHistory &&
-            (shop.orderHistory.wallet ||
-              (shop.orderHistory.orders &&
-                shop.orderHistory.orders.length > 0)),
-        ),
+        shopData: shopData,
       };
     } catch (error) {
       this.logger.error(
@@ -458,22 +526,74 @@ export class CustomerOrderService {
     customerId: string,
   ) {
     try {
-      // Get all shops the user has access to
-      const userShops = await this.prisma.userShop.findMany({
-        where: { userId },
-        select: {
-          shopId: true,
-          shop: {
+      this.logger.debug(
+        `Getting warranty items for all shops. UserId: ${userId}, CustomerId: ${customerId}`,
+      );
+
+      // First, get the user's role
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+
+      let userShops = [];
+
+      // If the user is a customer and looking up their own data (self-lookup)
+      if (user?.role === 'CUSTOMER' && userId === customerId) {
+        this.logger.debug(`User is a customer looking up their own data`);
+
+        // Find all shops where this customer has orders
+        const shopsWithOrders = await this.prisma.order.findMany({
+          where: { customerId: userId },
+          distinct: ['shopId'],
+          select: { shopId: true },
+        });
+
+        // Get shop details
+        if (shopsWithOrders.length > 0) {
+          const shopIds = shopsWithOrders.map((o) => o.shopId);
+
+          const shops = await this.prisma.shop.findMany({
+            where: { id: { in: shopIds } },
             select: {
               id: true,
               businessName: true,
               shopLogo: true,
             },
+          });
+
+          userShops = shops.map((shop) => ({
+            shopId: shop.id,
+            shop: shop,
+          }));
+        }
+
+        this.logger.debug(
+          `Found ${userShops.length} shops for customer ${userId}`,
+        );
+      } else {
+        // Regular case for shop owners/staff
+        userShops = await this.prisma.userShop.findMany({
+          where: { userId },
+          select: {
+            shopId: true,
+            shop: {
+              select: {
+                id: true,
+                businessName: true,
+                shopLogo: true,
+              },
+            },
           },
-        },
-      });
+        });
+
+        this.logger.debug(
+          `Found ${userShops.length} shops for userId: ${userId}`,
+        );
+      }
 
       if (!userShops || userShops.length === 0) {
+        this.logger.debug(`No shops found for userId: ${userId}`);
         return {
           customer: null,
           shopData: [],
@@ -492,55 +612,68 @@ export class CustomerOrderService {
       });
 
       if (!customer) {
+        this.logger.debug(`Customer not found: ${customerId}`);
         return {
           customer: null,
           shopData: [],
         };
       }
 
+      this.logger.debug(`Found customer: ${customer.name} (${customer.id})`);
+
       // Get warranty data from each shop
       const shopData = await Promise.all(
         userShops.map(async (userShop) => {
           try {
+            this.logger.debug(
+              `Getting warranty items for shop: ${userShop.shopId}`,
+            );
             const warrantyItems = await this.getCustomerWarrantyItems(
               customerId,
               userShop.shopId,
             );
 
-            // Only include shops with warranty items
-            if (
-              (warrantyItems.activeWarranty &&
-                warrantyItems.activeWarranty.length > 0) ||
-              (warrantyItems.expiredWarranty &&
-                warrantyItems.expiredWarranty.length > 0)
-            ) {
-              return {
-                shopId: userShop.shopId,
-                shopName: userShop.shop.businessName,
-                shopLogo: userShop.shop.shopLogo,
-                warrantyItems,
-              };
-            }
+            const activeCount = warrantyItems.activeWarranty
+              ? warrantyItems.activeWarranty.length
+              : 0;
+            const expiredCount = warrantyItems.expiredWarranty
+              ? warrantyItems.expiredWarranty.length
+              : 0;
+            this.logger.debug(
+              `Shop ${userShop.shopId}: active=${activeCount}, expired=${expiredCount}`,
+            );
 
-            return null;
+            // Include all shops, even if they have no warranty items
+            return {
+              shopId: userShop.shopId,
+              shopName: userShop.shop.businessName,
+              shopLogo: userShop.shop.shopLogo,
+              warrantyItems,
+            };
           } catch (error) {
             this.logger.error(
               `Error getting warranty items for shop ${userShop.shopId}: ${error.message}`,
             );
-            return null;
+            return {
+              shopId: userShop.shopId,
+              shopName: userShop.shop.businessName,
+              shopLogo: userShop.shop.shopLogo,
+              warrantyItems: {
+                activeWarranty: [],
+                expiredWarranty: [],
+                error: 'Failed to get warranty items',
+              },
+            };
           }
         }),
       );
-
-      // Filter out null entries
-      const filteredShopData = shopData.filter((shop) => shop !== null);
 
       // Combine all active warranty items across shops
       const allActiveWarranty = [];
       const allExpiredWarranty = [];
 
-      filteredShopData.forEach((shop) => {
-        if (shop.warrantyItems.activeWarranty) {
+      shopData.forEach((shop) => {
+        if (shop && shop.warrantyItems.activeWarranty) {
           shop.warrantyItems.activeWarranty.forEach((item) =>
             allActiveWarranty.push({
               ...item,
@@ -550,7 +683,7 @@ export class CustomerOrderService {
           );
         }
 
-        if (shop.warrantyItems.expiredWarranty) {
+        if (shop && shop.warrantyItems.expiredWarranty) {
           shop.warrantyItems.expiredWarranty.forEach((item) =>
             allExpiredWarranty.push({
               ...item,
@@ -561,9 +694,13 @@ export class CustomerOrderService {
         }
       });
 
+      this.logger.debug(
+        `Total active warranty items: ${allActiveWarranty.length}, expired: ${allExpiredWarranty.length}`,
+      );
+
       return {
         customer,
-        shopData: filteredShopData,
+        shopData,
         allActiveWarranty,
         allExpiredWarranty,
         activeCount: allActiveWarranty.length,
