@@ -605,7 +605,7 @@ export class CashFlowIntegrationService {
           amount: payment.amount,
           date: new Date(),
           shopId: payment.shopId,
-          type: 'ORDER_PAYMENT',
+          type: 'REFUND',
           category,
           isRecurring: payment.paymentType === 'RECURRING',
         },

@@ -549,181 +549,19 @@ export class CashflowService {
   }
 
   // Integration with Order System
+  // These methods have been moved to CashFlowIntegrationService in the order module
 
   /**
-   * Synchronize order payment with cash flow
-   * This method should be called when an order payment is processed
+   * Methods moved to CashFlowIntegrationService in the order module
+   *
+   * syncOrderPaymentWithCashFlow - For handling order payment synchronization
+   * syncDuePaymentWithCashFlow - For handling due payment synchronization
+   * getCustomerDuesAsAssets - For retrieving customer dues as assets
+   * getComprehensiveCashFlow - For comprehensive cash flow reports
    */
-  async syncOrderPaymentWithCashFlow(
-    orderId: string,
-    payment: {
-      id: string;
-      amount: string;
-      method: string;
-      reference?: string;
-      createdAt: Date;
-    },
-    shopId: string,
-    orderNumber: string,
-    customerId?: string,
-  ): Promise<void> {
-    try {
-      // Create a transaction record for this payment
-      await this.prismaService.transaction.create({
-        data: {
-          description: customerId
-            ? `Order #${orderNumber} Payment (Customer ID: ${customerId})`
-            : `Order #${orderNumber} Payment`,
-          amount: payment.amount,
-          date: payment.createdAt,
-          shopId,
-          type: 'ORDER_PAYMENT',
-          category: 'SALES',
-          isRecurring: false,
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to sync order payment to cash flow: ${error.message}`,
-      );
-      throw new Error('Failed to sync order payment with cash flow');
-    }
-  }
 
-  /**
-   * Synchronize due payment with cash flow
-   */
-  async syncDuePaymentWithCashFlow(
-    customerId: string,
-    shopId: string,
-    amount: string,
-    date: Date,
-  ): Promise<void> {
-    try {
-      // Get customer info for better description
-      const customer = await this.prismaService.user.findUnique({
-        where: { id: customerId },
-        select: { name: true },
-      });
-
-      // Create a transaction record for this payment
-      await this.prismaService.transaction.create({
-        data: {
-          description: `Due Payment from ${customer?.name || 'Customer'}`,
-          amount,
-          date,
-          shopId,
-          type: 'DUE_PAYMENT',
-          category: 'SALES',
-          isRecurring: false,
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to sync due payment to cash flow: ${error.message}`,
-      );
-      throw new Error('Failed to sync due payment with cash flow');
-    }
-  }
-
-  /**
-   * Get all customer dues as financial assets
-   */
-  async getCustomerDuesAsAssets(shopId: string): Promise<any> {
-    try {
-      // Find all wallets with negative balances (dues)
-      const customerWallets = await this.prismaService.customerWallet.findMany({
-        where: {
-          shopId,
-        },
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              contactNumber: true,
-            },
-          },
-        },
-      });
-
-      // Filter and format customer dues
-      const duesList = customerWallets
-        .filter((wallet) => {
-          // Consider only negative balances as dues
-          try {
-            const balance = parseFloat(wallet.balance);
-            return balance < 0;
-          } catch {
-            return false;
-          }
-        })
-        .map((wallet) => ({
-          customerId: wallet.customer.id,
-          customerName: wallet.customer.name,
-          contactInfo:
-            wallet.customer.contactNumber ||
-            wallet.customer.email ||
-            'No contact info',
-          dueAmount: Math.abs(parseFloat(wallet.balance)), // Absolute value of negative balance
-        }));
-
-      // Calculate total dues
-      const totalDues = duesList.reduce((sum, due) => sum + due.dueAmount, 0);
-
-      return {
-        totalDues,
-        duesList,
-        count: duesList.length,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get customer dues: ${error.message}`);
-      throw new Error('Failed to get customer dues');
-    }
-  }
-
-  /**
-   * Get comprehensive cash flow report including shop balance, wallet dues, and upcoming payments
-   */
-  async getComprehensiveCashFlow(shopId: string): Promise<any> {
-    try {
-      // Get basic cash flow summary
-      const summary = await this.getCashflowSummary(shopId);
-
-      // Get customer dues as assets
-      const customerDues = await this.getCustomerDuesAsAssets(shopId);
-
-      // Get upcoming payments
-      const { data: upcomingPayments } = await this.getUpcomingPayments({
-        shopId,
-        startDate: new Date(),
-      });
-
-      // Calculate total upcoming expenses
-      const totalUpcoming = upcomingPayments
-        .reduce((sum, payment) => sum + parseFloat(payment.amount), 0)
-        .toString();
-
-      // Calculate adjusted balance (current balance + dues - upcoming payments)
-      const adjustedBalance = (
-        parseFloat(summary.currentBalance) +
-        customerDues.totalDues -
-        parseFloat(totalUpcoming)
-      ).toString();
-
-      return {
-        ...summary,
-        customerDues,
-        totalUpcoming,
-        adjustedBalance,
-        healthStatus: parseFloat(adjustedBalance) > 0 ? 'HEALTHY' : 'AT_RISK',
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to get comprehensive cash flow: ${error.message}`,
-      );
-      throw new Error('Failed to get comprehensive cash flow');
-    }
+  // Add uppercase alias for getCashflowSummary for controller compatibility
+  async getCashFlowSummary(shopId: string): Promise<CashflowSummaryDto> {
+    return this.getCashflowSummary(shopId);
   }
 }
