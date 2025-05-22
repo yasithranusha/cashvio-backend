@@ -17,7 +17,7 @@ export class CustomerOrderController {
   constructor(private readonly customerOrderService: CustomerOrderService) {}
 
   @Get('all/:customerId/history')
-  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF, Role.CUSTOMER)
   async getAllShopsCustomerOrderHistory(
     @Param('customerId') customerId: string,
     @Req() req,
@@ -31,7 +31,7 @@ export class CustomerOrderController {
   }
 
   @Get('all/:customerId/warranty')
-  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF)
+  @Roles(Role.SHOP_OWNER, Role.SHOP_STAFF, Role.CUSTOMER)
   async getAllShopsCustomerWarrantyItems(
     @Param('customerId') customerId: string,
     @Req() req,
