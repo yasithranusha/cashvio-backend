@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { DatabaseModule, RmqModule } from '@app/common';
@@ -14,6 +14,7 @@ import { CustomerOrderModule } from './customer-order/customer-order.module';
 import { ShopBalanceModule } from './shop-balance/shop-balance.module';
 import { MAILER_SERVICE } from './constants/services';
 import { ReceiptPdfService } from './pdf/receipt-pdf.service';
+import { CashFlowIntegrationModule } from './cash-flow-integration/cash-flow-integration.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ReceiptPdfService } from './pdf/receipt-pdf.service';
         RABBIT_MQ_URI: Joi.string().required(),
         RABBIT_MQ_ORDER_QUEUE: Joi.string().required(),
         RABBIT_MQ_MAILER_QUEUE: Joi.string().required(),
+        STOCK_SERVICE_URL: Joi.string().default('http://localhost:3002'),
       }),
       envFilePath: ['./apps/order/.env'],
       validate,
@@ -38,6 +40,7 @@ import { ReceiptPdfService } from './pdf/receipt-pdf.service';
     RmqModule.register({ name: MAILER_SERVICE }),
     CustomerOrderModule,
     ShopBalanceModule,
+    forwardRef(() => CashFlowIntegrationModule),
   ],
   controllers: [
     OrderController,
