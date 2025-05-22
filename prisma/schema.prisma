@@ -53,6 +53,9 @@ model Shop {
   suppliers       Supplier[]
   users           UserShop[]
   defaultForUsers User[]           @relation("DefaultShop")
+  transactions    Transaction[]
+  recurringPayments RecurringPayment[]
+  upcomingPayments UpcomingPayment[]
 
   @@index([status])
   @@map("shops")
@@ -342,6 +345,94 @@ model ShopBalance {
 
   @@index([shopId])
   @@map("shop_balances")
+}
+
+// Cash Flow Management Models
+model Transaction {
+  id          String           @id @default(uuid())
+  description String
+  amount      String           // Use string to handle decimal values precisely
+  date        DateTime
+  shopId      String           @map("shop_id")
+  type        TransactionType  // Reusing the existing TransactionType
+  category    TransactionCategory
+  isRecurring Boolean          @default(false) @map("is_recurring")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  shop        Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  recurringPayment RecurringPayment?
+
+  @@index([shopId])
+  @@index([type])
+  @@index([category])
+  @@index([date])
+  @@map("transactions")
+}
+
+enum TransactionCategory {
+  SHOP_RENT
+  UTILITIES
+  STOCK_PURCHASE
+  STAFF_WAGES
+  MARKETING
+  SALES
+  SERVICE_FEES
+  DELIVERY_CHARGES
+  VAT_PAYMENT
+  INSURANCE
+  EQUIPMENT
+  INTERNET
+  POS_SYSTEM_FEE
+  OTHER
+}
+
+model RecurringPayment {
+  id              String    @id @default(uuid())
+  description     String
+  amount          String    // Use string to handle decimal values precisely
+  frequency       PaymentFrequency
+  nextDate        DateTime  @map("next_date")
+  transactionId   String    @unique @map("transaction_id")
+  shopId          String    @map("shop_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([nextDate])
+  @@map("recurring_payments")
+}
+
+model UpcomingPayment {
+  id              String    @id @default(uuid())
+  description     String
+  amount          String    // Use string to handle decimal values precisely
+  dueDate         DateTime  @map("due_date")
+  paymentType     PaymentType @map("payment_type")
+  isPriority      Boolean   @default(false) @map("is_priority")
+  shopId          String    @map("shop_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([dueDate])
+  @@index([isPriority])
+  @@map("upcoming_payments")
+}
+
+enum PaymentFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum PaymentType {
+  ONE_TIME
+  RECURRING
 }
 
 enum Status {

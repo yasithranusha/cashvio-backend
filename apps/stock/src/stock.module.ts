@@ -10,6 +10,7 @@ import { ProductModule } from './product/product.module';
 import { ItemModule } from './item/item.module';
 import { CategoryModule } from './category/category.module';
 import { DiscountModule } from './discount/discount.module';
+import { CashflowModule } from './cashflow/cashflow.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { DiscountModule } from './discount/discount.module';
     ItemModule,
     CategoryModule,
     DiscountModule,
+    CashflowModule,
   ],
   controllers: [StockController],
   providers: [StockService],
