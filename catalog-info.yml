@@ -1,0 +1,407 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cashvio-backend
+  title: Cashvio Backend Services
+  description: A microservices-based backend system for Cashvio POS and inventory management platform
+  annotations:
+    github.com/project-slug: yasithranusha/cashvio-backend
+    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - pos
+    - inventory
+    - microservices
+    - nestjs
+    - prisma
+    - rabbitmq
+    - docker
+  links:
+    - url: https://github.com/yasithranusha/cashvio-backend
+      title: Source Code
+      icon: github
+    - url: http://localhost:8080
+      title: Auth Service (Dev)
+      icon: web
+    - url: http://localhost:8081
+      title: Mailer-Uploader Service (Dev)
+      icon: web
+    - url: http://localhost:8082
+      title: Stock Service (Dev)
+      icon: web
+    - url: http://localhost:8083
+      title: Order Service (Dev)
+      icon: web
+spec:
+  type: service
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  dependsOn:
+    - resource:cashvio-database
+    - resource:rabbitmq-broker
+    - resource:aws-s3
+    - resource:aws-kms
+  providesApis:
+    - cashvio-auth-api
+    - cashvio-mailer-uploader-api
+    - cashvio-order-api
+    - cashvio-stock-api
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cashvio-auth-service
+  title: Auth Service
+  description: Handles authentication, JWT tokens, Google OAuth, and user management
+  annotations:
+    github.com/project-slug: yasithranusha/cashvio-backend
+    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main/apps/auth
+  tags:
+    - authentication
+    - jwt
+    - oauth
+    - google-auth
+    - user-management
+spec:
+  type: service
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  dependsOn:
+    - resource:cashvio-database
+    - resource:rabbitmq-broker
+    - resource:google-oauth
+  providesApis:
+    - cashvio-auth-api
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cashvio-mailer-uploader-service
+  title: Mailer Uploader Service
+  description: Handles email notifications and file uploads to AWS S3
+  annotations:
+    github.com/project-slug: yasithranusha/cashvio-backend
+    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main/apps/mailer-uploader
+  tags:
+    - email-service
+    - file-upload
+    - aws-s3
+    - notifications
+spec:
+  type: service
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  dependsOn:
+    - resource:rabbitmq-broker
+    - resource:aws-s3
+    - resource:gmail-oauth
+  providesApis:
+    - cashvio-mailer-uploader-api
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cashvio-stock-service
+  title: Stock Service
+  description: Manages inventory, products, categories, and stock levels
+  annotations:
+    github.com/project-slug: yasithranusha/cashvio-backend
+    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main/apps/stock
+  tags:
+    - inventory-management
+    - product-catalog
+    - category-management
+    - stock-tracking
+spec:
+  type: service
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  dependsOn:
+    - resource:cashvio-database
+    - resource:rabbitmq-broker
+  providesApis:
+    - cashvio-stock-api
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cashvio-order-service
+  title: Order Service
+  description: Handles order processing, customer management, receipt generation, and data encryption
+  annotations:
+    github.com/project-slug: yasithranusha/cashvio-backend
+    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main/apps/order
+  tags:
+    - order-processing
+    - customer-management
+    - receipt-generation
+    - aws-kms
+    - encryption
+spec:
+  type: service
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  dependsOn:
+    - resource:cashvio-database
+    - resource:rabbitmq-broker
+    - resource:aws-kms
+    - component:cashvio-mailer-uploader-service
+  providesApis:
+    - cashvio-order-api
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: cashvio-auth-api
+  title: Cashvio Auth API
+  description: Authentication and user management API - documented in Postman
+  annotations:
+    postman.com/collection-url: "Link to your Postman collection"
+spec:
+  type: openapi
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Cashvio Auth API
+      version: 1.0.0
+      description: API for authentication, JWT tokens, and user management
+    servers:
+      - url: http://localhost:8080
+        description: Development server
+      - url: http://localhost:3010
+        description: Production server
+    paths:
+      /auth/login:
+        post:
+          summary: User login
+          description: Authenticate user and return JWT tokens
+      /auth/google:
+        get:
+          summary: Google OAuth login
+          description: Initiate Google OAuth authentication flow
+      /auth/refresh:
+        post:
+          summary: Refresh JWT token
+          description: Refresh expired access token using refresh token
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: cashvio-mailer-uploader-api
+  title: Cashvio Mailer Uploader API
+  description: Email and file upload API - documented in Postman
+  annotations:
+    postman.com/collection-url: "Link to your Postman collection"
+spec:
+  type: openapi
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Cashvio Mailer Uploader API
+      version: 1.0.0
+      description: API for sending emails and uploading files to AWS S3
+    servers:
+      - url: http://localhost:8081
+        description: Development server
+      - url: http://localhost:3001
+        description: Production server
+    paths:
+      /upload:
+        post:
+          summary: Upload file to S3
+          description: Upload files to AWS S3 bucket
+      /mail/send:
+        post:
+          summary: Send email
+          description: Send email notifications
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: cashvio-stock-api
+  title: Cashvio Stock API
+  description: Inventory and product management API - documented in Postman
+  annotations:
+    postman.com/collection-url: "Link to your Postman collection"
+spec:
+  type: openapi
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Cashvio Stock API
+      version: 1.0.0
+      description: API for managing products, items, and inventory
+    servers:
+      - url: http://localhost:8082
+        description: Development server
+      - url: http://localhost:3002
+        description: Production server
+    paths:
+      /items:
+        get:
+          summary: Get items
+          description: Retrieve items with filtering and pagination
+        post:
+          summary: Create item
+          description: Create a new inventory item
+      /categories:
+        get:
+          summary: Get categories
+          description: Retrieve product categories
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: cashvio-order-api
+  title: Cashvio Order API
+  description: Order management and customer operations API - documented in Postman
+  annotations:
+    postman.com/collection-url: "Link to your Postman collection"
+spec:
+  type: openapi
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Cashvio Order API
+      version: 1.0.0
+      description: API for managing orders, customers, and receipts
+    servers:
+      - url: http://localhost:8083
+        description: Development server
+      - url: http://localhost:3003
+        description: Production server
+    paths:
+      /orders:
+        post:
+          summary: Create new order
+          description: Creates a new order with customer and item details
+      /customers:
+        get:
+          summary: Get customers
+          description: Retrieve customer information
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cashvio-database
+  title: Cashvio PostgreSQL Database
+  description: Shared PostgreSQL database for Auth, Stock, and Order services
+spec:
+  type: database
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: rabbitmq-broker
+  title: RabbitMQ Message Broker
+  description: Message broker for inter-service communication with management UI
+  annotations:
+    rabbitmq.management-url: "http://localhost:15672"
+spec:
+  type: message-broker
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: aws-s3
+  title: AWS S3 Storage
+  description: AWS S3 bucket for file storage and uploads
+spec:
+  type: storage
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: aws-kms
+  title: AWS KMS
+  description: AWS Key Management Service for data encryption in order service
+spec:
+  type: encryption-service
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: google-oauth
+  title: Google OAuth Service
+  description: Google OAuth 2.0 for user authentication
+spec:
+  type: oauth-provider
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gmail-oauth
+  title: Gmail OAuth Service
+  description: Gmail OAuth for sending email notifications
+spec:
+  type: oauth-provider
+  lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: cashvio-platform
+  title: Cashvio Platform
+  description: Complete POS and inventory management platform
+spec:
+  owner: team-cashvio
+  domain: retail-technology
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: retail-technology
+  title: Retail Technology
+  description: Domain covering retail and point-of-sale solutions
+spec:
+  owner: team-cashvio
