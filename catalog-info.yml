@@ -394,14 +394,3 @@ metadata:
   description: Complete POS and inventory management platform
 spec:
   owner: team-cashvio
-  domain: retail-technology
-
----
-apiVersion: backstage.io/v1alpha1
-kind: Domain
-metadata:
-  name: retail-technology
-  title: Retail Technology
-  description: Domain covering retail and point-of-sale solutions
-spec:
-  owner: team-cashvio
