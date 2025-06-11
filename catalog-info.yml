@@ -32,6 +32,18 @@ metadata:
     - url: http://localhost:8083
       title: Order Service (Dev)
       icon: web
+    - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/auth
+      title: Auth Service (Production)
+      icon: web
+    - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/stock
+      title: Stock Service (Production)
+      icon: web
+    - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/order
+      title: Order Service (Production)
+      icon: web
+    - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/mailer
+      title: Mailer-Uploader Service (Production)
+      icon: web
 spec:
   type: service
   lifecycle: development
@@ -145,6 +157,7 @@ metadata:
     - receipt-generation
     - aws-kms
     - encryption
+    - cashflow-management
 spec:
   type: service
   lifecycle: development
@@ -166,7 +179,7 @@ metadata:
   title: Cashvio Auth API
   description: Authentication and user management API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: "https://github.com/yasithranusha/cashvio-backend/blob/main/cashvio_postman_collection.json"
 spec:
   type: openapi
   lifecycle: development
@@ -181,7 +194,7 @@ spec:
     servers:
       - url: http://localhost:8080
         description: Development server
-      - url: http://localhost:3010
+      - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/auth
         description: Production server
     paths:
       /auth/login:
@@ -196,6 +209,22 @@ spec:
         post:
           summary: Refresh JWT token
           description: Refresh expired access token using refresh token
+      /auth/logout:
+        post:
+          summary: User logout
+          description: Logout user and invalidate tokens
+      /auth/register:
+        post:
+          summary: Register new user
+          description: Register new user (seller/customer) with OTP verification
+      /auth/otp/generate:
+        post:
+          summary: Generate OTP
+          description: Generate and send OTP for email verification
+      /users:
+        get:
+          summary: Get users
+          description: Get users with pagination and filters
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -205,7 +234,7 @@ metadata:
   title: Cashvio Mailer Uploader API
   description: Email and file upload API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: "https://github.com/yasithranusha/cashvio-backend/blob/main/cashvio_postman_collection.json"
 spec:
   type: openapi
   lifecycle: development
@@ -220,13 +249,16 @@ spec:
     servers:
       - url: http://localhost:8081
         description: Development server
-      - url: http://localhost:3001
+      - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/mailer
         description: Production server
     paths:
       /upload:
         post:
           summary: Upload file to S3
-          description: Upload files to AWS S3 bucket
+          description: Upload files to AWS S3 bucket with optional subFolder
+        delete:
+          summary: Delete files from S3
+          description: Delete files from AWS S3 bucket using keys
       /mail/send:
         post:
           summary: Send email
@@ -240,7 +272,7 @@ metadata:
   title: Cashvio Stock API
   description: Inventory and product management API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: "https://github.com/yasithranusha/cashvio-backend/blob/main/cashvio_postman_collection.json"
 spec:
   type: openapi
   lifecycle: development
@@ -251,24 +283,56 @@ spec:
     info:
       title: Cashvio Stock API
       version: 1.0.0
-      description: API for managing products, items, and inventory
+      description: API for managing products, items, inventory, and categories
     servers:
       - url: http://localhost:8082
         description: Development server
-      - url: http://localhost:3002
+      - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/stock
         description: Production server
     paths:
+      /products:
+        get:
+          summary: Get products
+          description: Retrieve products with filtering and pagination
+        post:
+          summary: Create product
+          description: Create a new product
+      /products/with-items:
+        get:
+          summary: Get products with items
+          description: Get products including their inventory items
       /items:
         get:
           summary: Get items
-          description: Retrieve items with filtering and pagination
+          description: Retrieve inventory items with filtering
         post:
           summary: Create item
           description: Create a new inventory item
+      /items/barcode/{barcode}:
+        get:
+          summary: Get item by barcode
+          description: Retrieve item by barcode scan
       /categories:
         get:
           summary: Get categories
           description: Retrieve product categories
+        post:
+          summary: Create category
+          description: Create new product category
+      /suppliers:
+        get:
+          summary: Get suppliers
+          description: Retrieve suppliers
+        post:
+          summary: Create supplier
+          description: Add new supplier
+      /discounts:
+        get:
+          summary: Get discounts
+          description: Retrieve product discounts
+        post:
+          summary: Create discount
+          description: Create new discount campaign
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -276,9 +340,9 @@ kind: API
 metadata:
   name: cashvio-order-api
   title: Cashvio Order API
-  description: Order management and customer operations API - documented in Postman
+  description: Order management, customer operations, and cashflow API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: "https://github.com/yasithranusha/cashvio-backend/blob/main/cashvio_postman_collection.json"
 spec:
   type: openapi
   lifecycle: development
@@ -289,21 +353,59 @@ spec:
     info:
       title: Cashvio Order API
       version: 1.0.0
-      description: API for managing orders, customers, and receipts
+      description: API for managing orders, customers, receipts, and cashflow
     servers:
       - url: http://localhost:8083
         description: Development server
-      - url: http://localhost:3003
+      - url: http://ec2-51-21-155-1.eu-north-1.compute.amazonaws.com/order
         description: Production server
     paths:
       /orders:
         post:
           summary: Create new order
-          description: Creates a new order with customer and item details
-      /customers:
+          description: Creates a new order with customer and item details, supports multiple payment methods
         get:
-          summary: Get customers
-          description: Retrieve customer information
+          summary: Get orders
+          description: Retrieve orders with filtering by shop, date range, status
+      /orders/{orderId}:
+        get:
+          summary: Get order by ID
+          description: Retrieve specific order details
+      /customer-orders/{customerId}/shop/{shopId}/history:
+        get:
+          summary: Get customer order history
+          description: Get customer's order history for specific shop
+      /customer-orders/all/{customerId}/history:
+        get:
+          summary: Get customer order history (all shops)
+          description: Get customer's complete order history across all shops
+      /customer-wallet/{shopId}/{customerId}:
+        get:
+          summary: Get customer wallet
+          description: Get customer wallet balance for specific shop
+      /customer-wallet/all/{customerId}:
+        get:
+          summary: Get customer wallet (all shops)
+          description: Get customer wallet balances across all shops
+      /shop-balance/{shopId}:
+        get:
+          summary: Get shop balance
+          description: Get shop's financial balance
+      /upcoming-payments:
+        post:
+          summary: Add upcoming payment
+          description: Add upcoming payment obligation
+        get:
+          summary: Get upcoming payments
+          description: Get list of upcoming payments
+      /cash-flow/comprehensive/{shopId}:
+        get:
+          summary: Comprehensive cashflow
+          description: Get comprehensive cashflow analysis for shop
+      /cash-flow/customer-dues/{shopId}:
+        get:
+          summary: Customer dues
+          description: Get customer dues for shop
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -311,7 +413,7 @@ kind: Resource
 metadata:
   name: cashvio-database
   title: Cashvio PostgreSQL Database
-  description: Shared PostgreSQL database for Auth, Stock, and Order services
+  description: Shared PostgreSQL database for all microservices (Auth, Stock, Order, and Mailer-Uploader services)
 spec:
   type: database
   lifecycle: development
@@ -324,7 +426,7 @@ kind: Resource
 metadata:
   name: rabbitmq-broker
   title: RabbitMQ Message Broker
-  description: Message broker for inter-service communication with management UI
+  description: Message broker for inter-service communication between all microservices
   annotations:
     rabbitmq.management-url: "http://localhost:15672"
 spec:
@@ -339,7 +441,7 @@ kind: Resource
 metadata:
   name: aws-s3
   title: AWS S3 Storage
-  description: AWS S3 bucket for file storage and uploads
+  description: AWS S3 bucket for file storage and uploads (used by Mailer-Uploader service)
 spec:
   type: storage
   lifecycle: development
@@ -365,7 +467,7 @@ kind: Resource
 metadata:
   name: google-oauth
   title: Google OAuth Service
-  description: Google OAuth 2.0 for user authentication
+  description: Google OAuth 2.0 for user authentication (separate from Gmail OAuth)
 spec:
   type: oauth-provider
   lifecycle: development
@@ -378,10 +480,30 @@ kind: Resource
 metadata:
   name: gmail-oauth
   title: Gmail OAuth Service
-  description: Gmail OAuth for sending email notifications
+  description: Gmail OAuth for sending email notifications (separate configuration from user auth)
 spec:
   type: oauth-provider
   lifecycle: development
+  owner: team-cashvio
+  system: cashvio-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: nginx-proxy
+  title: Nginx Reverse Proxy
+  description: Nginx reverse proxy on EC2 for routing production traffic to microservices
+  annotations:
+    nginx.config-info: |
+      Route mappings:
+      /auth -> :3010 (Auth Service)
+      /stock -> :3002 (Stock Service) 
+      /order -> :3003 (Order Service)
+      /mailer -> :3001 (Mailer-Uploader Service)
+spec:
+  type: proxy
+  lifecycle: production
   owner: team-cashvio
   system: cashvio-platform
 
@@ -391,6 +513,6 @@ kind: System
 metadata:
   name: cashvio-platform
   title: Cashvio Platform
-  description: Complete POS and inventory management platform
+  description: Complete POS and inventory management platform with microservices architecture
 spec:
   owner: team-cashvio
