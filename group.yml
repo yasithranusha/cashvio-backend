@@ -1,0 +1,67 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: team-cashvio
+  title: Cashvio Development Team
+  description: Development team responsible for the Cashvio POS and inventory management platform
+  annotations:
+    github.com/team-slug: yasithranusha/cashvio-team
+  tags:
+    - development
+    - pos
+    - inventory
+    - microservices
+spec:
+  type: team
+  profile:
+    displayName: Cashvio Development Team
+    email: team@cashvio.com
+    picture: https://avatars.githubusercontent.com/u/yasithranusha
+  parent: engineering
+  children: []
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: engineering
+  title: Engineering Department
+  description: Engineering department overseeing all technical development
+spec:
+  type: department
+  profile:
+    displayName: Engineering Department
+    email: engineering@cashvio.com
+  children:
+    - team-cashvio
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: yasith-ranusha
+  title: Yasith Ranusha
+  description: Lead Developer and Project Owner for Cashvio platform
+  annotations:
+    github.com/user-login: yasithranusha
+  tags:
+    - developer
+    - team-lead
+    - full-stack
+spec:
+  profile:
+    displayName: Yasith Ranusha
+    email: yasithranusha24@gmail.com
+    picture: https://avatars.githubusercontent.com/yasithranusha
+  memberOf:
+    - team-cashvio
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: cashvio-team-catalog
+  description: Team and user definitions for Cashvio project
+spec:
+  type: url
+  target: https://github.com/yasithranusha/cashvio-backend/blob/main/group.yml
