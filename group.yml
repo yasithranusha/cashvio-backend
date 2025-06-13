@@ -1,6 +1,96 @@
 apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
+  name: engineering
+  title: Engineering Department
+  description: Engineering department overseeing all technical development
+spec:
+  type: department
+  profile:
+    displayName: Engineering Department
+    email: engineering@cashvio.com
+  children:
+    - backend-team
+    - frontend-team
+    - infrastructure-team
+    - team-cashvio
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: backend-team
+  title: Backend Development Team
+  description: Team responsible for backend services, APIs, and microservices architecture
+  annotations:
+    github.com/team-slug: yasithranusha/backend-team
+  tags:
+    - backend
+    - api
+    - microservices
+    - nodejs
+    - nestjs
+spec:
+  type: team
+  profile:
+    displayName: Backend Development Team
+    email: backend@cashvio.com
+    picture: https://avatars.githubusercontent.com/u/yasithranusha
+  parent: engineering
+  children: []
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: frontend-team
+  title: Frontend Development Team
+  description: Team responsible for user interfaces, web applications, and customer-facing features
+  annotations:
+    github.com/team-slug: yasithranusha/frontend-team
+  tags:
+    - frontend
+    - react
+    - nextjs
+    - ui-ux
+    - typescript
+spec:
+  type: team
+  profile:
+    displayName: Frontend Development Team
+    email: frontend@cashvio.com
+    picture: https://avatars.githubusercontent.com/u/yasithranusha
+  parent: engineering
+  children: []
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: infrastructure-team
+  title: Infrastructure & DevOps Team
+  description: Team responsible for infrastructure, deployment, monitoring, and DevOps practices
+  annotations:
+    github.com/team-slug: yasithranusha/infrastructure-team
+  tags:
+    - infrastructure
+    - devops
+    - aws
+    - docker
+    - ci-cd
+spec:
+  type: team
+  profile:
+    displayName: Infrastructure & DevOps Team
+    email: infrastructure@cashvio.com
+    picture: https://avatars.githubusercontent.com/u/yasithranusha
+  parent: engineering
+  children: []
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
   name: team-cashvio
   title: Cashvio Development Team
   description: Development team responsible for the Cashvio POS and inventory management platform
@@ -22,21 +112,6 @@ spec:
 
 ---
 apiVersion: backstage.io/v1alpha1
-kind: Group
-metadata:
-  name: engineering
-  title: Engineering Department
-  description: Engineering department overseeing all technical development
-spec:
-  type: department
-  profile:
-    displayName: Engineering Department
-    email: engineering@cashvio.com
-  children:
-    - team-cashvio
-
----
-apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
   name: yasith-ranusha
@@ -48,13 +123,19 @@ metadata:
     - developer
     - team-lead
     - full-stack
+    - backend
+    - frontend
+    - devops
 spec:
   profile:
     displayName: Yasith Ranusha
-    email: yasithranusha24@gmail.com
+    email: yasith@cashvio.com
     picture: https://avatars.githubusercontent.com/yasithranusha
   memberOf:
     - team-cashvio
+    - backend-team
+    - frontend-team
+    - infrastructure-team
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -65,3 +146,13 @@ metadata:
 spec:
   type: url
   target: https://github.com/yasithranusha/cashvio-backend/blob/main/group.yml
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: cashvio-frontend-catalog
+  description: Frontend components for Cashvio project
+spec:
+  type: url
+  target: https://github.com/yasithranusha/cashvio-frontend/blob/main/catalog-info.yml
