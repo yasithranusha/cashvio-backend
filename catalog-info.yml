@@ -6,8 +6,8 @@ metadata:
   description: A microservices-based backend system for Cashvio POS and inventory management platform
   annotations:
     github.com/project-slug: yasithranusha/cashvio-backend
-    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend
-    backstage.io/techdocs-ref: dir:./docs
+    backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main
+    backstage.io/techdocs-ref: url:https://github.com/yasithranusha/cashvio-backend/tree/main
   tags:
     - pos
     - inventory
