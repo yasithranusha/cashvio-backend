@@ -7,7 +7,7 @@ metadata:
   annotations:
     github.com/project-slug: yasithranusha/cashvio-backend
     backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend
-    backstage.io/techdocs-ref: dir:.
+    backstage.io/techdocs-ref: dir:./docs
   tags:
     - pos
     - inventory
