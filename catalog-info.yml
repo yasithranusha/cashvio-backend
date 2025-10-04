@@ -168,7 +168,7 @@ metadata:
   title: Cashvio Auth API
   description: Authentication, user management, and employee management API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: 'Link to your Postman collection'
 spec:
   type: openapi
   lifecycle: development
@@ -232,7 +232,7 @@ metadata:
   title: Cashvio Mailer Uploader API
   description: Email and file upload API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: 'Link to your Postman collection'
 spec:
   type: openapi
   lifecycle: development
@@ -267,7 +267,7 @@ metadata:
   title: Cashvio Stock API
   description: Inventory and product management API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: 'Link to your Postman collection'
 spec:
   type: openapi
   lifecycle: development
@@ -305,7 +305,7 @@ metadata:
   title: Cashvio Order API
   description: Order management and customer operations API - documented in Postman
   annotations:
-    postman.com/collection-url: "Link to your Postman collection"
+    postman.com/collection-url: 'Link to your Postman collection'
 spec:
   type: openapi
   lifecycle: development
@@ -353,7 +353,7 @@ metadata:
   title: RabbitMQ Message Broker
   description: Message broker for inter-service communication with management UI
   annotations:
-    rabbitmq.management-url: "http://localhost:15672"
+    rabbitmq.management-url: 'http://localhost:15672'
 spec:
   type: message-broker
   lifecycle: development

@@ -20,9 +20,7 @@ export class EmployeesService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createEmployee(
-    dto: CreateEmployeeDto,
-  ): Promise<EmployeeResponseDto> {
+  async createEmployee(dto: CreateEmployeeDto): Promise<EmployeeResponseDto> {
     this.logger.debug('Creating employee', dto);
 
     try {

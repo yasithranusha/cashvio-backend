@@ -67,6 +67,7 @@ Creates a new employee record for a user in a specific shop.
 **Authorization:** SHOP_OWNER, ADMIN, SUPER_ADMIN
 
 **Request Body:**
+
 ```json
 {
   "userId": "uuid",
@@ -82,6 +83,7 @@ Creates a new employee record for a user in a specific shop.
 ```
 
 **Response:**
+
 ```json
 {
   "id": "uuid",
@@ -120,6 +122,7 @@ Retrieves a paginated list of employees with optional filtering.
 **Authorization:** SHOP_OWNER, ADMIN, SUPER_ADMIN, SHOP_STAFF
 
 **Query Parameters:**
+
 - `page` (optional): Page number (default: 1)
 - `limit` (optional): Items per page (default: 10)
 - `shopId` (optional): Filter by shop ID
@@ -128,6 +131,7 @@ Retrieves a paginated list of employees with optional filtering.
 - `search` (optional): Search by employee name or email
 
 **Response:**
+
 ```json
 {
   "data": [
@@ -191,6 +195,7 @@ Updates an existing employee record.
 **Authorization:** SHOP_OWNER, ADMIN, SUPER_ADMIN
 
 **Request Body (all fields optional):**
+
 ```json
 {
   "designation": "Senior Sales Manager",
@@ -225,6 +230,7 @@ Returns the number of active employees in a specific shop.
 **Authorization:** SHOP_OWNER, ADMIN, SUPER_ADMIN
 
 **Response:**
+
 ```json
 {
   "count": 15
@@ -286,14 +292,14 @@ npx prisma generate
 
 The employee management endpoints use role-based access control:
 
-| Endpoint | SHOP_OWNER | ADMIN | SUPER_ADMIN | SHOP_STAFF |
-|----------|------------|-------|-------------|------------|
-| Create Employee | ✅ | ✅ | ✅ | ❌ |
-| Get Employees | ✅ | ✅ | ✅ | ✅ |
-| Get Employee by ID | ✅ | ✅ | ✅ | ✅ |
-| Update Employee | ✅ | ✅ | ✅ | ❌ |
-| Delete Employee | ✅ | ✅ | ✅ | ❌ |
-| Get Employee Count | ✅ | ✅ | ✅ | ❌ |
+| Endpoint           | SHOP_OWNER | ADMIN | SUPER_ADMIN | SHOP_STAFF |
+| ------------------ | ---------- | ----- | ----------- | ---------- |
+| Create Employee    | ✅         | ✅    | ✅          | ❌         |
+| Get Employees      | ✅         | ✅    | ✅          | ✅         |
+| Get Employee by ID | ✅         | ✅    | ✅          | ✅         |
+| Update Employee    | ✅         | ✅    | ✅          | ❌         |
+| Delete Employee    | ✅         | ✅    | ✅          | ❌         |
+| Get Employee Count | ✅         | ✅    | ✅          | ❌         |
 
 ## Error Handling
 
@@ -339,6 +345,7 @@ Potential features for future releases:
 ## Support
 
 For issues or questions related to employee management:
+
 - Create an issue on GitHub
 - Contact the development team
 - Refer to the main documentation

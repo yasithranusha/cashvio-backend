@@ -3,6 +3,7 @@
 ## ✅ Completed Tasks
 
 ### 1. Database Schema Updates
+
 - ✅ Added `Employee` model to Prisma schema with all required fields
 - ✅ Created `EmployeeStatus` enum (ACTIVE, ON_LEAVE, SUSPENDED, TERMINATED)
 - ✅ Added relations between Employee, User, and Shop models
@@ -10,14 +11,18 @@
 - ✅ Added appropriate indexes for performance
 
 ### 2. Data Transfer Objects (DTOs)
+
 Created comprehensive DTOs in `apps/auth/src/employees/dto/employee.dto.ts`:
+
 - ✅ `CreateEmployeeDto` - For creating new employees
 - ✅ `UpdateEmployeeDto` - For updating employee information
 - ✅ `GetEmployeesDto` - For querying employees with filters
 - ✅ `EmployeeResponseDto` - For API responses
 
 ### 3. Service Layer
+
 Implemented `EmployeesService` in `apps/auth/src/employees/employees.service.ts` with:
+
 - ✅ `createEmployee()` - Create new employee records
 - ✅ `getEmployees()` - Retrieve employees with pagination and filtering
 - ✅ `getEmployeeById()` - Get employee by ID
@@ -27,7 +32,9 @@ Implemented `EmployeesService` in `apps/auth/src/employees/employees.service.ts`
 - ✅ `getShopEmployeeCount()` - Get active employee count per shop
 
 ### 4. Controller Layer
+
 Created `EmployeesController` in `apps/auth/src/employees/employees.controller.ts` with:
+
 - ✅ POST `/employees` - Create employee
 - ✅ GET `/employees` - List employees with filters
 - ✅ GET `/employees/:id` - Get employee by ID
@@ -38,11 +45,13 @@ Created `EmployeesController` in `apps/auth/src/employees/employees.controller.t
 - ✅ Role-based access control implemented
 
 ### 5. Module Configuration
+
 - ✅ Created `EmployeesModule`
 - ✅ Integrated with `AuthModule`
 - ✅ Configured database access
 
 ### 6. Documentation
+
 - ✅ Updated `catalog-info.yml` with employee management API endpoints
 - ✅ Created comprehensive documentation in `docs/employee-management.md`
 - ✅ Added employee management tags to Auth service
@@ -50,6 +59,7 @@ Created `EmployeesController` in `apps/auth/src/employees/employees.controller.t
 ## 📋 Next Steps (Required)
 
 ### 1. Run Database Migration
+
 Since the remote database wasn't accessible during implementation, you need to run:
 
 ```bash
@@ -64,17 +74,21 @@ npx prisma generate
 ```
 
 This will:
+
 - Create the `employees` table in your database
 - Add the `EmployeeStatus` enum
 - Update the Prisma client with the new types
 
 ### 2. Update Environment Variables (if needed)
+
 Ensure your `.env` file has the correct database connection:
+
 ```env
 DATABASE_URL="postgresql://..."
 ```
 
 ### 3. Test the API
+
 After running the migration, test the endpoints:
 
 ```bash
@@ -100,7 +114,9 @@ curl -X GET "http://localhost:8080/employees?shopId=shop-uuid" \
 ```
 
 ### 4. Update Postman Collection
+
 Add the employee management endpoints to your Postman collection:
+
 - Create Employee
 - Get Employees (with filters)
 - Get Employee by ID
@@ -110,9 +126,11 @@ Add the employee management endpoints to your Postman collection:
 - Get Shop Employee Count
 
 ### 5. Optional: Update DTO Import
+
 After running the migration and generating Prisma client, you can update the DTO:
 
 In `apps/auth/src/employees/dto/employee.dto.ts`, replace:
+
 ```typescript
 export enum EmployeeStatus {
   ACTIVE = 'ACTIVE',
@@ -123,6 +141,7 @@ export enum EmployeeStatus {
 ```
 
 With:
+
 ```typescript
 import { EmployeeStatus } from '@prisma/client';
 ```
@@ -147,6 +166,7 @@ prisma/
 ## 🎯 Features Implemented
 
 ### Core Functionality
+
 - ✅ Full CRUD operations for employees
 - ✅ Pagination support
 - ✅ Advanced filtering (by shop, status, department, search)
@@ -156,12 +176,14 @@ prisma/
 - ✅ Logging for debugging
 
 ### Security
+
 - ✅ JWT authentication required
 - ✅ Role-based authorization (SHOP_OWNER, ADMIN, SUPER_ADMIN, SHOP_STAFF)
 - ✅ Input validation on all endpoints
 - ✅ UUID validation for IDs
 
 ### Data Integrity
+
 - ✅ Unique constraint on user-shop combination
 - ✅ Cascading deletes when user or shop is deleted
 - ✅ Foreign key constraints
@@ -169,15 +191,15 @@ prisma/
 
 ## 📊 API Endpoints Summary
 
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/employees` | Owner, Admin | Create employee |
-| GET | `/employees` | All authenticated | List employees |
-| GET | `/employees/:id` | All authenticated | Get employee by ID |
-| GET | `/employees/user/:userId/shop/:shopId` | All authenticated | Get by user & shop |
-| PUT | `/employees/:id` | Owner, Admin | Update employee |
-| DELETE | `/employees/:id` | Owner, Admin | Delete employee |
-| GET | `/employees/shop/:shopId/count` | Owner, Admin | Get employee count |
+| Method | Endpoint                               | Access            | Description        |
+| ------ | -------------------------------------- | ----------------- | ------------------ |
+| POST   | `/employees`                           | Owner, Admin      | Create employee    |
+| GET    | `/employees`                           | All authenticated | List employees     |
+| GET    | `/employees/:id`                       | All authenticated | Get employee by ID |
+| GET    | `/employees/user/:userId/shop/:shopId` | All authenticated | Get by user & shop |
+| PUT    | `/employees/:id`                       | Owner, Admin      | Update employee    |
+| DELETE | `/employees/:id`                       | Owner, Admin      | Delete employee    |
+| GET    | `/employees/shop/:shopId/count`        | Owner, Admin      | Get employee count |
 
 ## 💡 Usage Tips
 
@@ -196,6 +218,7 @@ prisma/
 ## 🔮 Future Enhancements
 
 Consider implementing these features in future iterations:
+
 - Employee attendance tracking
 - Payroll management
 - Performance reviews
@@ -215,6 +238,7 @@ Consider implementing these features in future iterations:
 ## ✨ Code Quality
 
 All code follows:
+
 - ✅ NestJS best practices
 - ✅ TypeScript strict mode
 - ✅ Consistent naming conventions
