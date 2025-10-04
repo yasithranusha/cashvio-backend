@@ -1,0 +1,20 @@
+site_name: 'Cashvio Backend Documentation'
+site_description: 'Documentation for Cashvio POS and inventory management backend services'
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Services:
+    - Auth Service: services/auth.md
+    - Stock Service: services/stock.md
+    - Order Service: services/order.md
+    - Mailer-Uploader Service: services/mailer-uploader.md
+  - API Documentation: api.md
+  - Deployment: deployment.md
+  - Development Guide: development.md
+
+plugins:
+  - techdocs-core
+
+theme:
+  name: material

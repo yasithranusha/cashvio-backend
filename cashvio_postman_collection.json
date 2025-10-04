@@ -1,0 +1,3614 @@
+{
+	"info": {
+		"_postman_id": "56c7638b-7807-4171-b6a8-48631c744838",
+		"name": "Final Year Project",
+		"description": "Cashvio POS and FInancail management API Colelction",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31119202"
+	},
+	"item": [
+		{
+			"name": "File Upload",
+			"item": [
+				{
+					"name": "Upload Files",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": "/C:/Users/YasithSilva/Downloads/18409.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{server}}{{mailer-uploader}}/upload?subFolder=electronics/smartphones",
+							"host": [
+								"{{server}}{{mailer-uploader}}"
+							],
+							"path": [
+								"upload"
+							],
+							"query": [
+								{
+									"key": "subFolder",
+									"value": "electronics/smartphones"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Files Copy",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"key\": [\r\n        \"images/electronics/smartphones/1743238430030-18409-bcbdc1e1-63cc-40b8-8020-2244a793ac94.jpg\"\r\n    ]\r\n}\r\n\r\n//can pass as a aray or a single field both work",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{server}}{{mailer-uploader}}/upload",
+							"host": [
+								"{{server}}{{mailer-uploader}}"
+							],
+							"path": [
+								"upload"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User & Auth",
+			"item": [
+				{
+					"name": "Auth",
+					"item": [
+						{
+							"name": "User-Sign in",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"var responseBody = pm.response.json();\r",
+											"var accessToken = responseBody.accessToken;\r",
+											"var refreshToken = responseBody.refreshToken;\r",
+											"pm.collectionVariables.set(\"ACCESS_TOKEN\", accessToken);\r",
+											"pm.collectionVariables.set(\"REFRESH_TOKEN\", refreshToken);"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"email\":\"joraxe5983@provko.com\",\r\n    \"password\":\"Abcd@1234\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{auth}}/auth/login",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Success",
+									"originalRequest": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n    \"email\":\"misigo4081@envoes.com\",\r\n    \"password\":\"password123\"\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{BASE_URL}}/auth/login",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"auth",
+												"login"
+											]
+										}
+									},
+									"status": "Created",
+									"code": 201,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "586"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"24a-+HfWpis8STdGPYPX52z+C6aYUFI\""
+										},
+										{
+											"key": "Date",
+											"value": "Sat, 01 Mar 2025 17:53:49 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWUwOTBhMi1kZWQ0LTQ4OWEtOTIzNi0wNGJmYjY3Mzg2NDYiLCJlbWFpbCI6Im1pc2lnbzQwODFAZW52b2VzLmNvbSIsInJvbGUiOiJTSE9QX09XTkVSIiwiaWF0IjoxNzQwODUxNjI5LCJleHAiOjE3NDA5MzgwMjl9.lb3PpnfVtGOC8vCKyx6Ja33o0zviGDgSO8NGpXS8LyU\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWUwOTBhMi1kZWQ0LTQ4OWEtOTIzNi0wNGJmYjY3Mzg2NDYiLCJpYXQiOjE3NDA4NTE2MjksImV4cCI6MTc0MTQ1NjQyOX0.-wfDGAyB3fDZmCvgCIgJDU8JbeHV24oaZC7ur3Vv1nU\",\n    \"user\": {\n        \"id\": \"71e090a2-ded4-489a-9236-04bfb6738646\",\n        \"email\": \"misigo4081@envoes.com\",\n        \"role\": \"SHOP_OWNER\"\n    }\n}"
+								},
+								{
+									"name": "Invalid",
+									"originalRequest": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n    \"email\":\"misigo4081@envoes.com\",\r\n    \"password\":\"password\"\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{BASE_URL}}/auth/login",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"auth",
+												"login"
+											]
+										}
+									},
+									"status": "Bad Request",
+									"code": 400,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "78"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"4e-UOLk8hdBc/JbwThGRC2kPV1XPyc\""
+										},
+										{
+											"key": "Date",
+											"value": "Sat, 01 Mar 2025 17:58:18 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"message\": \"Invalid email or password\",\n    \"error\": \"Bad Request\",\n    \"statusCode\": 400\n}"
+								}
+							]
+						},
+						{
+							"name": "Refresh",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Parse the response JSON\r",
+											"let response = pm.response.json();\r",
+											"\r",
+											"// Set accessToken and refreshToken as environment variables\r",
+											"pm.environment.set(\"accessToken\", response.accessToken);\r",
+											"pm.environment.set(\"refreshToken\", response.refreshToken);\r",
+											"\r",
+											"// Set user details\r",
+											"pm.environment.set(\"userId\", response.user.id);\r",
+											"pm.environment.set(\"userEmail\", response.user.email);\r",
+											"pm.environment.set(\"userRole\", response.user.role);\r",
+											"\r",
+											"// Log a message for debugging\r",
+											"console.log(\"Tokens and user details saved successfully!\");\r",
+											""
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{REFRESH_TOKEN}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/auth/refresh",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"auth",
+										"refresh"
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/auth/refresh",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"auth",
+												"refresh"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "586"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"24a-fy1oe5KQSYR05HD4yrcN1AbhDG8\""
+										},
+										{
+											"key": "Date",
+											"value": "Sat, 01 Mar 2025 17:54:14 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWUwOTBhMi1kZWQ0LTQ4OWEtOTIzNi0wNGJmYjY3Mzg2NDYiLCJlbWFpbCI6Im1pc2lnbzQwODFAZW52b2VzLmNvbSIsInJvbGUiOiJTSE9QX09XTkVSIiwiaWF0IjoxNzQwODUxNjU0LCJleHAiOjE3NDA5MzgwNTR9.VeaUh4Tw3bcB7N7DKOOK0tNDS4NdaZ7nuzFA8JoZ-yM\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWUwOTBhMi1kZWQ0LTQ4OWEtOTIzNi0wNGJmYjY3Mzg2NDYiLCJpYXQiOjE3NDA4NTE2NTQsImV4cCI6MTc0MTQ1NjQ1NH0.O9KRtHzfcCgrTIualRY8zxn_mkHkjCiCogVCAdHGUY4\",\n    \"user\": {\n        \"id\": \"71e090a2-ded4-489a-9236-04bfb6738646\",\n        \"email\": \"misigo4081@envoes.com\",\n        \"role\": \"SHOP_OWNER\"\n    }\n}"
+								}
+							]
+						},
+						{
+							"name": "Logout",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/auth/logout",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"auth",
+										"logout"
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Logout",
+									"originalRequest": {
+										"method": "POST",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/auth/logout",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"auth",
+												"logout"
+											]
+										}
+									},
+									"status": "Created",
+									"code": 201,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "37"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"25-71uUsMgZY3FdZp9j1h5YMrBIOgg\""
+										},
+										{
+											"key": "Date",
+											"value": "Sun, 02 Mar 2025 06:58:26 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"message\": \"Logged out successfully\"\n}"
+								}
+							]
+						}
+					],
+					"auth": {
+						"type": "bearer",
+						"bearer": [
+							{
+								"key": "token",
+								"value": "{{ACCESS_TOKEN}}",
+								"type": "string"
+							}
+						]
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"packages": {},
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"packages": {},
+								"exec": [
+									""
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Users",
+					"item": [
+						{
+							"name": "Seller",
+							"item": [
+								{
+									"name": "1-Verify Email with OTP",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"email\": \"lenej89378@oronny.com\",\r\n  \"name\": \"Lene Isorax\"\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{auth}}/auth/otp/generate",
+											"host": [
+												"{{server}}{{auth}}"
+											],
+											"path": [
+												"auth",
+												"otp",
+												"generate"
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "1-Verify Email with OTP",
+											"originalRequest": {
+												"method": "POST",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\r\n  \"email\": \"lenej89378@oronny.com\",\r\n  \"name\": \"Lene Isorax\"\r\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{server}}{{auth}}/auth/otp/generate",
+													"host": [
+														"{{server}}{{auth}}"
+													],
+													"path": [
+														"auth",
+														"otp",
+														"generate"
+													]
+												}
+											},
+											"status": "Created",
+											"code": 201,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "X-Powered-By",
+													"value": "Express"
+												},
+												{
+													"key": "Content-Type",
+													"value": "application/json; charset=utf-8"
+												},
+												{
+													"key": "Content-Length",
+													"value": "36"
+												},
+												{
+													"key": "ETag",
+													"value": "W/\"24-VkArUuGRXR0zcdu7xaOzINQwAWc\""
+												},
+												{
+													"key": "Date",
+													"value": "Fri, 28 Mar 2025 19:41:05 GMT"
+												},
+												{
+													"key": "Connection",
+													"value": "keep-alive"
+												},
+												{
+													"key": "Keep-Alive",
+													"value": "timeout=5"
+												}
+											],
+											"cookie": [],
+											"body": "{\n    \"message\": \"OTP sent to your email\"\n}"
+										}
+									]
+								},
+								{
+									"name": "2-Register with OTP",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"bedogex247@gamebcs.com\",\n    \"password\": \"password123\",\n    \"businessName\": \"My Shop\",\n    \"shopCategory\": \"category-name\",\n    \"address\": \"123 Main St\",\n    \"contactPhone\": \"+94761234567\",\n    \"contactNumber\": \"+94761234567\",\n    \"shopLogo\": \"https://example.com/logo.png\",\n    \"shopBanner\": \"https://example.com/banner.png\",\n    \"profileImage\": \"https://example.com/profile.jpg\",\n    \"dob\": \"1990-01-01T00:00:00.000Z\",\n    \"otp\": \"627473\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{auth}}/auth/register",
+											"host": [
+												"{{server}}{{auth}}"
+											],
+											"path": [
+												"auth",
+												"register"
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Success",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"misigo4081@envoes.com\",\n    \"password\": \"password123\",\n    \"businessName\": \"My Shop\",\n    \"address\": \"123 Main St\",\n    \"contactPhone\": \"+94761234567\",\n    \"contactNumber\": \"+94761234567\",\n    \"shopLogo\": \"https://example.com/logo.png\",\n    \"shopBanner\": \"https://example.com/banner.png\",\n    \"profileImage\": \"https://example.com/profile.jpg\",\n    \"dob\": \"1990-01-01T00:00:00.000Z\",\n    \"otp\": \"773167\"\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{BASE_URL}}/auth/register",
+													"host": [
+														"{{BASE_URL}}"
+													],
+													"path": [
+														"auth",
+														"register"
+													]
+												}
+											},
+											"status": "Created",
+											"code": 201,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "X-Powered-By",
+													"value": "Express"
+												},
+												{
+													"key": "Content-Type",
+													"value": "application/json; charset=utf-8"
+												},
+												{
+													"key": "Content-Length",
+													"value": "691"
+												},
+												{
+													"key": "ETag",
+													"value": "W/\"2b3-HmsR7VQPDfbQ7+NordCtiWkj08c\""
+												},
+												{
+													"key": "Date",
+													"value": "Thu, 20 Feb 2025 20:27:16 GMT"
+												},
+												{
+													"key": "Connection",
+													"value": "keep-alive"
+												},
+												{
+													"key": "Keep-Alive",
+													"value": "timeout=5"
+												}
+											],
+											"cookie": [],
+											"body": "{\n    \"id\": \"44c7c9a6-9cde-4965-99be-3bda7b905d87\",\n    \"businessName\": \"My Shop\",\n    \"address\": \"123 Main St\",\n    \"shopLogo\": \"https://example.com/logo.png\",\n    \"shopBanner\": \"https://example.com/banner.png\",\n    \"contactPhone\": \"+94761234567\",\n    \"status\": \"ACTIVE\",\n    \"createdAt\": \"2025-02-20T20:27:12.645Z\",\n    \"updatedAt\": \"2025-02-20T20:27:12.645Z\",\n    \"users\": [\n        {\n            \"id\": \"71e090a2-ded4-489a-9236-04bfb6738646\",\n            \"name\": \"John Doe\",\n            \"email\": \"misigo4081@envoes.com\",\n            \"dob\": \"1990-01-01T00:00:00.000Z\",\n            \"profileImage\": \"https://example.com/profile.jpg\",\n            \"contactNumber\": \"+94761234567\",\n            \"status\": \"ACTIVE\",\n            \"role\": \"SHOP_OWNER\",\n            \"shopId\": \"44c7c9a6-9cde-4965-99be-3bda7b905d87\",\n            \"createdAt\": \"2025-02-20T20:27:13.149Z\",\n            \"updatedAt\": \"2025-02-20T20:27:13.149Z\"\n        }\n    ]\n}"
+										}
+									]
+								}
+							],
+							"auth": {
+								"type": "bearer",
+								"bearer": [
+									{
+										"key": "token",
+										"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMGIzYzFiZi05NzE1LTRhNTEtYTU3OS1hOTMyZWMzNTVjZWQiLCJlbWFpbCI6Imdla2FyNDYzMTZAY2FsbXByb3MuY29tIiwicm9sZSI6IlNIT1BfT1dORVIiLCJpYXQiOjE3NDA4MDU5OTIsImV4cCI6MTc0MDg5MjM5Mn0.kL03bBHOFe4M-fm9mxdhlCVMUxROG6B9pXkc2iCKFhM",
+										"type": "string"
+									}
+								]
+							},
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"packages": {},
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"packages": {},
+										"exec": [
+											""
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Customer",
+							"item": [
+								{
+									"name": "1-Verify Email with OTP",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"email\": \"lenej89378@oronny.com\",\r\n  \"name\": \"Lene Isorax\"\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{auth}}/auth/otp/generate",
+											"host": [
+												"{{server}}{{auth}}"
+											],
+											"path": [
+												"auth",
+												"otp",
+												"generate"
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "1-Verify Email with OTP",
+											"originalRequest": {
+												"method": "POST",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\r\n  \"email\": \"lenej89378@oronny.com\",\r\n  \"name\": \"Lene Isorax\"\r\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{server}}{{auth}}/auth/otp/generate",
+													"host": [
+														"{{server}}{{auth}}"
+													],
+													"path": [
+														"auth",
+														"otp",
+														"generate"
+													]
+												}
+											},
+											"status": "Created",
+											"code": 201,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "X-Powered-By",
+													"value": "Express"
+												},
+												{
+													"key": "Content-Type",
+													"value": "application/json; charset=utf-8"
+												},
+												{
+													"key": "Content-Length",
+													"value": "36"
+												},
+												{
+													"key": "ETag",
+													"value": "W/\"24-VkArUuGRXR0zcdu7xaOzINQwAWc\""
+												},
+												{
+													"key": "Date",
+													"value": "Fri, 28 Mar 2025 19:41:05 GMT"
+												},
+												{
+													"key": "Connection",
+													"value": "keep-alive"
+												},
+												{
+													"key": "Keep-Alive",
+													"value": "timeout=5"
+												}
+											],
+											"cookie": [],
+											"body": "{\n    \"message\": \"OTP sent to your email\"\n}"
+										}
+									]
+								},
+								{
+									"name": "2-Register with OTP",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"bedogex247@gamebcs.com\",\n    \"password\": \"password123\",\n    \"businessName\": \"My Shop\",\n    \"address\": \"123 Main St\",\n    \"contactPhone\": \"+94761234567\",\n    \"contactNumber\": \"+94761234567\",\n    \"shopLogo\": \"https://example.com/logo.png\",\n    \"shopBanner\": \"https://example.com/banner.png\",\n    \"profileImage\": \"https://example.com/profile.jpg\",\n    \"dob\": \"1990-01-01T00:00:00.000Z\",\n    \"otp\": \"627473\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{auth}}/auth/register",
+											"host": [
+												"{{server}}{{auth}}"
+											],
+											"path": [
+												"auth",
+												"register"
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Success",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"misigo4081@envoes.com\",\n    \"password\": \"password123\",\n    \"businessName\": \"My Shop\",\n    \"address\": \"123 Main St\",\n    \"contactPhone\": \"+94761234567\",\n    \"contactNumber\": \"+94761234567\",\n    \"shopLogo\": \"https://example.com/logo.png\",\n    \"shopBanner\": \"https://example.com/banner.png\",\n    \"profileImage\": \"https://example.com/profile.jpg\",\n    \"dob\": \"1990-01-01T00:00:00.000Z\",\n    \"otp\": \"773167\"\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{BASE_URL}}/auth/register",
+													"host": [
+														"{{BASE_URL}}"
+													],
+													"path": [
+														"auth",
+														"register"
+													]
+												}
+											},
+											"status": "Created",
+											"code": 201,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "X-Powered-By",
+													"value": "Express"
+												},
+												{
+													"key": "Content-Type",
+													"value": "application/json; charset=utf-8"
+												},
+												{
+													"key": "Content-Length",
+													"value": "691"
+												},
+												{
+													"key": "ETag",
+													"value": "W/\"2b3-HmsR7VQPDfbQ7+NordCtiWkj08c\""
+												},
+												{
+													"key": "Date",
+													"value": "Thu, 20 Feb 2025 20:27:16 GMT"
+												},
+												{
+													"key": "Connection",
+													"value": "keep-alive"
+												},
+												{
+													"key": "Keep-Alive",
+													"value": "timeout=5"
+												}
+											],
+											"cookie": [],
+											"body": "{\n    \"id\": \"44c7c9a6-9cde-4965-99be-3bda7b905d87\",\n    \"businessName\": \"My Shop\",\n    \"address\": \"123 Main St\",\n    \"shopLogo\": \"https://example.com/logo.png\",\n    \"shopBanner\": \"https://example.com/banner.png\",\n    \"contactPhone\": \"+94761234567\",\n    \"status\": \"ACTIVE\",\n    \"createdAt\": \"2025-02-20T20:27:12.645Z\",\n    \"updatedAt\": \"2025-02-20T20:27:12.645Z\",\n    \"users\": [\n        {\n            \"id\": \"71e090a2-ded4-489a-9236-04bfb6738646\",\n            \"name\": \"John Doe\",\n            \"email\": \"misigo4081@envoes.com\",\n            \"dob\": \"1990-01-01T00:00:00.000Z\",\n            \"profileImage\": \"https://example.com/profile.jpg\",\n            \"contactNumber\": \"+94761234567\",\n            \"status\": \"ACTIVE\",\n            \"role\": \"SHOP_OWNER\",\n            \"shopId\": \"44c7c9a6-9cde-4965-99be-3bda7b905d87\",\n            \"createdAt\": \"2025-02-20T20:27:13.149Z\",\n            \"updatedAt\": \"2025-02-20T20:27:13.149Z\"\n        }\n    ]\n}"
+										}
+									]
+								}
+							],
+							"auth": {
+								"type": "bearer",
+								"bearer": [
+									{
+										"key": "token",
+										"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMGIzYzFiZi05NzE1LTRhNTEtYTU3OS1hOTMyZWMzNTVjZWQiLCJlbWFpbCI6Imdla2FyNDYzMTZAY2FsbXByb3MuY29tIiwicm9sZSI6IlNIT1BfT1dORVIiLCJpYXQiOjE3NDA4MDU5OTIsImV4cCI6MTc0MDg5MjM5Mn0.kL03bBHOFe4M-fm9mxdhlCVMUxROG6B9pXkc2iCKFhM",
+										"type": "string"
+									}
+								]
+							},
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"packages": {},
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"packages": {},
+										"exec": [
+											""
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Get All Users",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/users?page=1&limit=10",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"users"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "10"
+										},
+										{
+											"key": "role",
+											"value": "SHOP_OWNER",
+											"description": "ADMIN | SHOP_OWNER | SHOP_STAFF | CUSTOMER",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "ACTIVE",
+											"description": "ACTIVE | INACTIVE | SUSPENDED",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Sucess",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/users?page=1&limit=10&role=SHOP_OWNER",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"users"
+											],
+											"query": [
+												{
+													"key": "page",
+													"value": "1"
+												},
+												{
+													"key": "limit",
+													"value": "10"
+												},
+												{
+													"key": "role",
+													"value": "SHOP_OWNER",
+													"description": "ADMIN | SHOP_OWNER | SHOP_STAFF | CUSTOMER"
+												},
+												{
+													"key": "status",
+													"value": "ACTIVE",
+													"description": "ACTIVE | INACTIVE | SUSPENDED",
+													"disabled": true
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "486"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"1e6-y2u20mTAGsGVJ9/KNmVFs3JeBX4\""
+										},
+										{
+											"key": "Date",
+											"value": "Thu, 13 Feb 2025 20:02:13 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"data\": [\n        {\n            \"id\": \"23e8fbe5-38f7-4882-97fb-0fc658c1f162\",\n            \"name\": \"John Doe\",\n            \"dob\": \"1990-01-01T00:00:00.000Z\",\n            \"profileImage\": \"https://example.com/profile.jpg\",\n            \"status\": \"ACTIVE\",\n            \"email\": \"xecox93861@intady.com\",\n            \"password\": \"$2b$10$ttpGAsFAHwYZj2T9cMpzb.Tn/4Q0pSOu0x8PgINFkiJ.doxltm2c2\",\n            \"role\": \"SHOP_OWNER\",\n            \"shopId\": \"cef0473f-ff5c-478a-bd5d-bb107b761551\",\n            \"createdAt\": \"2025-02-12T19:53:26.414Z\",\n            \"updatedAt\": \"2025-02-12T19:53:26.414Z\"\n        }\n    ],\n    \"pagination\": {\n        \"total\": 1,\n        \"page\": 1,\n        \"limit\": 10,\n        \"totalPages\": 1\n    }\n}"
+								}
+							]
+						},
+						{
+							"name": "Get by email",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/users/email/:email",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"users",
+										"email",
+										":email"
+									],
+									"variable": [
+										{
+											"key": "email",
+											"value": "xecox93861@intady.com"
+										}
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Not found",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/users/email/:email",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"users",
+												"email",
+												":email"
+											],
+											"variable": [
+												{
+													"key": "email",
+													"value": "xecox93861@intady.co"
+												}
+											]
+										}
+									},
+									"status": "Bad Request",
+									"code": 400,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "67"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"43-KuuPo3UfCPA3lS/MtprD8PhEXRs\""
+										},
+										{
+											"key": "Date",
+											"value": "Thu, 13 Feb 2025 20:19:50 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"message\": \"user not found\",\n    \"error\": \"Bad Request\",\n    \"statusCode\": 400\n}"
+								},
+								{
+									"name": "Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/users/email/:email",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"users",
+												"email",
+												":email"
+											],
+											"variable": [
+												{
+													"key": "email",
+													"value": "xecox93861@intady.com"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "415"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"19f-rx4QbvCmBl2drP5qdX6kE330ekw\""
+										},
+										{
+											"key": "Date",
+											"value": "Thu, 13 Feb 2025 20:20:11 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"id\": \"23e8fbe5-38f7-4882-97fb-0fc658c1f162\",\n    \"name\": \"John Doe\",\n    \"dob\": \"1990-01-01T00:00:00.000Z\",\n    \"profileImage\": \"https://example.com/profile.jpg\",\n    \"status\": \"ACTIVE\",\n    \"email\": \"xecox93861@intady.com\",\n    \"password\": \"$2b$10$ttpGAsFAHwYZj2T9cMpzb.Tn/4Q0pSOu0x8PgINFkiJ.doxltm2c2\",\n    \"role\": \"SHOP_OWNER\",\n    \"shopId\": \"cef0473f-ff5c-478a-bd5d-bb107b761551\",\n    \"createdAt\": \"2025-02-12T19:53:26.414Z\",\n    \"updatedAt\": \"2025-02-12T19:53:26.414Z\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Get by Id",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/users/:id",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "23e8fbe5-38f7-48-0fc658c1f162"
+										}
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/users/:id",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"users",
+												":id"
+											],
+											"variable": [
+												{
+													"key": "id",
+													"value": "23e8fbe5-38f7-4882-97fb-0fc658c1f162"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "415"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"19f-rx4QbvCmBl2drP5qdX6kE330ekw\""
+										},
+										{
+											"key": "Date",
+											"value": "Thu, 13 Feb 2025 20:17:20 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"id\": \"23e8fbe5-38f7-4882-97fb-0fc658c1f162\",\n    \"name\": \"John Doe\",\n    \"dob\": \"1990-01-01T00:00:00.000Z\",\n    \"profileImage\": \"https://example.com/profile.jpg\",\n    \"status\": \"ACTIVE\",\n    \"email\": \"xecox93861@intady.com\",\n    \"password\": \"$2b$10$ttpGAsFAHwYZj2T9cMpzb.Tn/4Q0pSOu0x8PgINFkiJ.doxltm2c2\",\n    \"role\": \"SHOP_OWNER\",\n    \"shopId\": \"cef0473f-ff5c-478a-bd5d-bb107b761551\",\n    \"createdAt\": \"2025-02-12T19:53:26.414Z\",\n    \"updatedAt\": \"2025-02-12T19:53:26.414Z\"\n}"
+								},
+								{
+									"name": "Not found",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{BASE_URL}}/users/:id",
+											"host": [
+												"{{BASE_URL}}"
+											],
+											"path": [
+												"users",
+												":id"
+											],
+											"variable": [
+												{
+													"key": "id",
+													"value": "23e8fbe5-38f7-48"
+												}
+											]
+										}
+									},
+									"status": "Bad Request",
+									"code": 400,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "67"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"43-KuuPo3UfCPA3lS/MtprD8PhEXRs\""
+										},
+										{
+											"key": "Date",
+											"value": "Fri, 14 Feb 2025 03:21:08 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"message\": \"user not found\",\n    \"error\": \"Bad Request\",\n    \"statusCode\": 400\n}"
+								}
+							]
+						},
+						{
+							"name": "Update User info",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"name\": \"New Name\",\r\n    \"dob\": \"1995-04-09T00:00:00.000Z\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{auth}}/users/:id",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete User",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/users/:id",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Customers of shop",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{auth}}/shops/:shopid/customers",
+									"host": [
+										"{{server}}{{auth}}"
+									],
+									"path": [
+										"shops",
+										":shopid",
+										"customers"
+									],
+									"variable": [
+										{
+											"key": "shopid",
+											"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Stock Mange",
+			"item": [
+				{
+					"name": "Product Category",
+					"item": [
+						{
+							"name": "Main Category",
+							"item": [
+								{
+									"name": "Create a new category",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"Electronics\",\n    \"description\": \"Electronic devices and accessories\",\n    \"imageUrl\": \"https://example.com/images/electronics.jpg\",\n    \"status\": \"ACTIVE\",\n    \"shopId\": \"YOUR_SHOP_ID\"\n  }",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{stock}}/categories",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Get all categories",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/:shopid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												":shopid"
+											],
+											"query": [
+												{
+													"key": "page",
+													"value": "1",
+													"disabled": true
+												},
+												{
+													"key": "limit",
+													"value": "10",
+													"disabled": true
+												},
+												{
+													"key": "status",
+													"value": "ACTIVE",
+													"disabled": true
+												}
+											],
+											"variable": [
+												{
+													"key": "shopid",
+													"value": "d20139cf-cb49-4999-a6e2-ff02830c13de"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Get a specific category by ID",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/:categiryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												":categiryid"
+											],
+											"variable": [
+												{
+													"key": "categiryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Update a category",
+									"request": {
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"Updated Electronics\",\n    \"description\": \"Updated electronic devices and accessories\",\n    \"imageUrl\": \"https://example.com/images/updated-electronics.jpg\",\n    \"status\": \"ACTIVE\"\n  }",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/:categiryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												":categiryid"
+											],
+											"variable": [
+												{
+													"key": "categiryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Delete a category",
+									"request": {
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/:categiryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												":categiryid"
+											],
+											"variable": [
+												{
+													"key": "categiryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Sub Category",
+							"item": [
+								{
+									"name": "Create a new subcategory",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"Smartphones\",\n    \"description\": \"Mobile phones and accessories\",\n    \"imageUrl\": \"https://example.com/images/smartphones.jpg\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"19482d9c-d78a-4a16-b96c-6ce8aa1d1a0b\"\n  }",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Get all subcategories for a category",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories/:shop_id",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories",
+												":shop_id"
+											],
+											"query": [
+												{
+													"key": "page",
+													"value": "1",
+													"disabled": true
+												},
+												{
+													"key": "limit",
+													"value": "10",
+													"disabled": true
+												},
+												{
+													"key": "status",
+													"value": "ACTIVE",
+													"disabled": true
+												},
+												{
+													"key": "categoryId",
+													"value": "19482d9c-d78a-4a16-b96c-6ce8aa1d1a0b",
+													"disabled": true
+												}
+											],
+											"variable": [
+												{
+													"key": "shop_id",
+													"value": "d20139cf-cb49-4999-a6e2-ff02830c13de"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Get a specific subcategory by ID",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories/:subcategoryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories",
+												":subcategoryid"
+											],
+											"variable": [
+												{
+													"key": "subcategoryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Update a subcategory",
+									"request": {
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"Updated Smartphones\",\n    \"description\": \"Updated mobile phones and accessories\",\n    \"imageUrl\": \"https://example.com/images/updated-smartphones.jpg\",\n    \"categoryId\": \"9f22a06e-140c-429d-b27b-6ec78debbb6e\",\n    \"status\": \"ACTIVE\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories/:subcategoryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories",
+												":subcategoryid"
+											],
+											"variable": [
+												{
+													"key": "subcategoryid",
+													"value": "68b5a426-a739-4e9e-b76f-80fa707d8e8e"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Delete a subcategory",
+									"request": {
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories/:subcategoryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories",
+												":subcategoryid"
+											],
+											"variable": [
+												{
+													"key": "subcategoryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Sub Sub Category",
+							"item": [
+								{
+									"name": "Create a new sub-subcategory",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"Android Phones\",\n    \"description\": \"Android operating system smartphones\",\n    \"imageUrl\": \"https://example.com/images/android.jpg\",\n    \"status\": \"ACTIVE\",\n    \"subCategoryId\": \"SUBCATEGORY_ID\"\n  }",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories/subsubcategories",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories",
+												"subsubcategories"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Get all sub-subcategories for a subcategory",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subcategories/subsubcategories/:shopId",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subcategories",
+												"subsubcategories",
+												":shopId"
+											],
+											"query": [
+												{
+													"key": "page",
+													"value": "1",
+													"disabled": true
+												},
+												{
+													"key": "limit",
+													"value": "10",
+													"disabled": true
+												},
+												{
+													"key": "status",
+													"value": "ACTIVE",
+													"disabled": true
+												},
+												{
+													"key": "subCategoryId",
+													"value": null,
+													"disabled": true
+												}
+											],
+											"variable": [
+												{
+													"key": "shopId",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Get a specific sub-subcategory by ID",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subsubcategories/:subsubcategoryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subsubcategories",
+												":subsubcategoryid"
+											],
+											"variable": [
+												{
+													"key": "subsubcategoryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Update a sub-subcategory",
+									"request": {
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"Updated Android Phones\",\n    \"description\": \"Updated Android operating system smartphones\",\n    \"imageUrl\": \"https://example.com/images/updated-android.jpg\",\n    \"subCategoryId\":\"68b5a426-a739-4e9e-b76f-80fa707d8e8e\",\n    \"status\": \"ACTIVE\"\n  }",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subsubcategories/:subsubcategoryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subsubcategories",
+												":subsubcategoryid"
+											],
+											"variable": [
+												{
+													"key": "subsubcategoryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Delete a sub-subcategory",
+									"request": {
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer YOUR_JWT_TOKEN"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/categories/subsubcategories/:subsubcategoryid",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"categories",
+												"subsubcategories",
+												":subsubcategoryid"
+											],
+											"variable": [
+												{
+													"key": "subsubcategoryid",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Products",
+					"item": [
+						{
+							"name": "Create Product",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"iPhone 14 Pro\",\n    \"description\": \"Apple iPhone 14 Pro smartphone with A16 Bionic chip\",//optional\n    \"displayName\": \"iPhone 14 Pro (128GB)\",//optional\n    \"keepingUnits\": 10,\n    \"imageUrls\": [\n        \"https://example.com/image1.jpg\",\n        \"https://example.com/image2.jpg\"\n    ],//optional\n    \"warrantyMonths\": 12, //optional,\n    \"loyaltyPoints\":  10 ,\n    \"status\": \"ACTIVE\",//or HIDE\n    \"shopId\": \"shop-uuid-here\",\n    \"supplierId\": \"supplier-uuid-here\",//optional\n    \"categoryId\": \"category-uuid-here\",//optional\n    \"subCategoryId\": \"subcategory-uuid-here\",//optional\n    \"subSubCategoryId\": \"subsubcategory-uuid-here\"//optional\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/products",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"products"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Products (with pagination and filters)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/products?shopId=8f3f8163-f1e7-4c53-921c-b856e0fb480d",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"products"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "10",
+											"disabled": true
+										},
+										{
+											"key": "shopId",
+											"value": "8f3f8163-f1e7-4c53-921c-b856e0fb480d"
+										},
+										{
+											"key": "status",
+											"value": "ACTIVE",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "iphone",
+											"disabled": true
+										},
+										{
+											"key": "categoryId",
+											"value": "category-uuid-here",
+											"disabled": true
+										},
+										{
+											"key": "subCategoryId",
+											"value": "subcategory-uuid-here",
+											"disabled": true
+										},
+										{
+											"key": "subSubCategoryId",
+											"value": "subsubcategory-uuid-here",
+											"disabled": true
+										},
+										{
+											"key": "supplierId",
+											"value": "supplier-uuid-here",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Product by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/products/:productid",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"products",
+										":productid"
+									],
+									"variable": [
+										{
+											"key": "productid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Product",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"iPhone 14 Pro Max\",\n    \"description\": \"Updated description for Apple iPhone 14 Pro Max\",\n    \"displayName\": \"iPhone 14 Pro Max (256GB)\",\n    \"keepingUnits\": 15,\n    \"imageUrls\": [\n        \"https://example.com/updated-image1.jpg\",\n        \"https://example.com/updated-image2.jpg\"\n    ],\n    \"status\": \"ACTIVE\",\n    \"supplierId\": \"new-supplier-uuid-here\",\n    \"categoryId\": \"new-category-uuid-here\",\n    \"subCategoryId\": \"new-subcategory-uuid-here\",\n    \"subSubCategoryId\": \"new-subsubcategory-uuid-here\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/products/:productId",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"products",
+										":productId"
+									],
+									"variable": [
+										{
+											"key": "productId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Product",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/products/:productId",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"products",
+										":productId"
+									],
+									"query": [
+										{
+											"key": "cascade",
+											"value": "true",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "productId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Items of product",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer your_jwt_token"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/products/with-items?shopId=e2de2c02-2d2a-4f69-a9f2-317557bff078",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"products",
+										"with-items"
+									],
+									"query": [
+										{
+											"key": "shopId",
+											"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+										},
+										{
+											"key": "supplierId",
+											"value": "{supplier_id}",
+											"disabled": true
+										},
+										{
+											"key": "categoryId",
+											"value": "{category_id}",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "searchterm",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": [
+								{
+									"name": "Success",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer your_jwt_token"
+											}
+										],
+										"url": {
+											"raw": "{{server}}{{stock}}/products/with-items?shopId=e2de2c02-2d2a-4f69-a9f2-317557bff078",
+											"host": [
+												"{{server}}{{stock}}"
+											],
+											"path": [
+												"products",
+												"with-items"
+											],
+											"query": [
+												{
+													"key": "shopId",
+													"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+												},
+												{
+													"key": "supplierId",
+													"value": "{supplier_id}",
+													"disabled": true
+												},
+												{
+													"key": "categoryId",
+													"value": "{category_id}",
+													"disabled": true
+												},
+												{
+													"key": "search",
+													"value": "searchterm",
+													"disabled": true
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "X-Powered-By",
+											"value": "Express"
+										},
+										{
+											"key": "Content-Type",
+											"value": "application/json; charset=utf-8"
+										},
+										{
+											"key": "Content-Length",
+											"value": "2388"
+										},
+										{
+											"key": "ETag",
+											"value": "W/\"954-CcDdtuB2a232G3AJtMNLw87tozA\""
+										},
+										{
+											"key": "Date",
+											"value": "Wed, 21 May 2025 00:06:36 GMT"
+										},
+										{
+											"key": "Connection",
+											"value": "keep-alive"
+										},
+										{
+											"key": "Keep-Alive",
+											"value": "timeout=5"
+										}
+									],
+									"cookie": [],
+									"body": "{\n    \"data\": [\n        {\n            \"id\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\",\n            \"name\": \"Samsung Smart TV 44\\\"\",\n            \"description\": \"\",\n            \"shopId\": \"e2de2c02-2d2a-4f69-a9f2-317557bff078\",\n            \"createdAt\": \"2025-05-13T20:14:23.727Z\",\n            \"updatedAt\": \"2025-05-13T20:14:23.727Z\",\n            \"displayName\": \"Samsung Smart TV 44\\\"\",\n            \"imageUrls\": [],\n            \"keepingUnits\": 10,\n            \"warrantyMonths\": 24,\n            \"loyaltyPoints\": null,\n            \"supplierId\": \"fb425f11-6ae3-4fd6-9bfa-af37a9e2af2a\",\n            \"categoryId\": \"330e4be0-4433-410d-8053-4f1e899fdfe5\",\n            \"subCategoryId\": \"8a3a357d-16e7-4c64-bad1-280c4f731b29\",\n            \"subSubCategoryId\": \"dfdf83a0-3e23-4959-b858-32b5e9da031a\",\n            \"status\": \"ACTIVE\",\n            \"supplier\": {\n                \"id\": \"fb425f11-6ae3-4fd6-9bfa-af37a9e2af2a\",\n                \"name\": \"Samsung Electronics\",\n                \"contactNumber\": \"+94768931487\",\n                \"shopId\": \"e2de2c02-2d2a-4f69-a9f2-317557bff078\",\n                \"createdAt\": \"2025-05-13T20:13:33.559Z\",\n                \"updatedAt\": \"2025-05-13T20:13:33.559Z\",\n                \"email\": \"samsung@samsung.lk\",\n                \"haveWhatsApp\": true\n            },\n            \"category\": {\n                \"id\": \"330e4be0-4433-410d-8053-4f1e899fdfe5\",\n                \"name\": \"Electronic\"\n            },\n            \"subCategory\": {\n                \"id\": \"8a3a357d-16e7-4c64-bad1-280c4f731b29\",\n                \"name\": \"Television\",\n                \"categoryId\": \"330e4be0-4433-410d-8053-4f1e899fdfe5\"\n            },\n            \"subSubCategory\": {\n                \"id\": \"dfdf83a0-3e23-4959-b858-32b5e9da031a\",\n                \"name\": \"Smart TV\",\n                \"subCategoryId\": \"8a3a357d-16e7-4c64-bad1-280c4f731b29\"\n            },\n            \"items\": [\n                {\n                    \"id\": \"532e4c40-8d62-4e43-8cd0-f7320e81eb12\",\n                    \"barcode\": \"87878979878\",\n                    \"broughtPrice\": 120000,\n                    \"sellPrice\": 140000,\n                    \"warrantyPeriod\": null,\n                    \"productId\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\",\n                    \"createdAt\": \"2025-05-13T20:15:06.757Z\",\n                    \"updatedAt\": \"2025-05-13T20:41:45.973Z\"\n                },\n                {\n                    \"id\": \"e3523218-d85e-4293-9a7a-41f29eb83ece\",\n                    \"barcode\": \"2128192129812\",\n                    \"broughtPrice\": 120000,\n                    \"sellPrice\": 140000,\n                    \"warrantyPeriod\": null,\n                    \"productId\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\",\n                    \"createdAt\": \"2025-05-13T20:15:07.241Z\",\n                    \"updatedAt\": \"2025-05-13T20:41:46.620Z\"\n                },\n                {\n                    \"id\": \"5bf81bf5-123e-48f5-8eb2-773a8faad65f\",\n                    \"barcode\": \"8901234567890\",\n                    \"broughtPrice\": 120000,\n                    \"sellPrice\": 140000,\n                    \"warrantyPeriod\": \"2025-03-29T00:00:00.000Z\",\n                    \"productId\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\",\n                    \"createdAt\": \"2025-05-19T19:57:44.827Z\",\n                    \"updatedAt\": \"2025-05-19T19:57:44.827Z\"\n                },\n                {\n                    \"id\": \"ebbb0e9d-0ce5-40be-8055-3c0f2d6f9b38\",\n                    \"barcode\": \"6786786432\",\n                    \"broughtPrice\": 120000,\n                    \"sellPrice\": 140000,\n                    \"warrantyPeriod\": null,\n                    \"productId\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\",\n                    \"createdAt\": \"2025-05-19T20:58:08.651Z\",\n                    \"updatedAt\": \"2025-05-19T20:58:08.651Z\"\n                }\n            ],\n            \"_count\": {\n                \"items\": 4\n            },\n            \"stock\": 4\n        }\n    ],\n    \"pagination\": {\n        \"total\": 1,\n        \"page\": 1,\n        \"limit\": 10,\n        \"totalPages\": 1\n    }\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Items",
+					"item": [
+						{
+							"name": "Create Item",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"barcode\": \"6786786432\",\n    \"broughtPrice\": 120000,\n    \"sellPrice\": 140000,\n    \"productId\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/items",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"items"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Items",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/items?page=1&limit=10&productId=product-uuid-here",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"items"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "10"
+										},
+										{
+											"key": "productId",
+											"value": "product-uuid-here"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Item by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/items/:itemId",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"items",
+										":itemId"
+									],
+									"variable": [
+										{
+											"key": "itemId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Item",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"barcode\": \"8901234567891\",\n    \"broughtPrice\": 849.99,\n    \"sellPrice\": 1099.99,\n    \"warrantyPeriod\": \"2026-03-29T00:00:00Z\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/items/:itemId",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"items",
+										":itemId"
+									],
+									"variable": [
+										{
+											"key": "itemId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Item",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/items/:itemId",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"items",
+										":itemId"
+									],
+									"variable": [
+										{
+											"key": "itemId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get by Barcode",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{stock}}/items/barcode/:barcode",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"items",
+										"barcode",
+										":barcode"
+									],
+									"variable": [
+										{
+											"key": "barcode",
+											"value": "6786786432"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Supplier",
+					"item": [
+						{
+							"name": "Create Supplier",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"fdaf Electronics\",\n    \"email\": \"jlfd@gmail.com\",\n    \"contactNumber\": \"+1234567890\",\n    \"shopId\": \"d20139cf-cb49-4999-a6e2-ff02830c13de\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/suppliers",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"suppliers"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Suppliers",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/suppliers?page=1&limit=10&shopId=shop-uuid-here",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"suppliers"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "10"
+										},
+										{
+											"key": "shopId",
+											"value": "shop-uuid-here"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Supplier by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/suppliers/:supplier-uuid",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"suppliers",
+										":supplier-uuid"
+									],
+									"variable": [
+										{
+											"key": "supplier-uuid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Supplier",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"ABC Electronics Ltd\",\n    \"contactNumber\": \"+1987654321\",\n    \"haveWhatsApp\": true,\n    \"email\": \"jlfd@gmail.com\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/suppliers/:supplier-uuid",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"suppliers",
+										":supplier-uuid"
+									],
+									"variable": [
+										{
+											"key": "supplier-uuid",
+											"value": "aa4eadde-e25f-45aa-b45e-32f22624085e"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Supplier",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer YOUR_JWT_TOKEN"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{stock}}/suppliers/:supplier-uuid",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"suppliers",
+										":supplier-uuid"
+									],
+									"variable": [
+										{
+											"key": "supplier-uuid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Product Discount",
+					"item": [
+						{
+							"name": "Create Discount",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"title\": \"Summer Sale 2025\",\n    \"description\": \"Up to 50% off on selected items\",\n    \"startDate\": \"2025-06-01T00:00:00.000Z\",\n    \"endDate\": \"2025-08-31T23:59:59.000Z\"\n  }",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Discounts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "10",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "ACTIVE",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Discount By ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts/:DISCOUNT_ID",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts",
+										":DISCOUNT_ID"
+									],
+									"variable": [
+										{
+											"key": "DISCOUNT_ID",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Discount",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"title\": \"Extended Summer Sale 2025\",\n    \"description\": \"Up to 60% off on selected items\",\n    \"startDate\":\"2025-04-30T23:59:59.000Z\",\n    \"endDate\": \"2025-09-15T23:59:59.000Z\",\n    \"status\": \"ACTIVE\"\n  }",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts/:DISCOUNT_ID",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts",
+										":DISCOUNT_ID"
+									],
+									"variable": [
+										{
+											"key": "DISCOUNT_ID",
+											"value": "1072907b-2136-42de-98cd-3c6415f1ca0a"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Discount",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts/:DISCOUNT_ID",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts",
+										":DISCOUNT_ID"
+									],
+									"variable": [
+										{
+											"key": "DISCOUNT_ID",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Products to Discount",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"products\": [\n      {\n        \"productId\": \"10482996-6a8e-4a35-a55c-3e9e3556ebe6\",\n        \"percentage\": 25.5\n      }\n    ]\n  }",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts/products/:DISCOUNT_ID",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts",
+										"products",
+										":DISCOUNT_ID"
+									],
+									"variable": [
+										{
+											"key": "DISCOUNT_ID",
+											"value": "1072907b-2136-42de-98cd-3c6415f1ca0a"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Product wise discount get",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{stock}}/discounts/products/:PRODUCT_ID",
+									"host": [
+										"{{server}}{{stock}}"
+									],
+									"path": [
+										"discounts",
+										"products",
+										":PRODUCT_ID"
+									],
+									"variable": [
+										{
+											"key": "PRODUCT_ID",
+											"value": "10482996-6a8e-4a35-a55c-3e9e3556ebe6"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Order Manage",
+			"item": [
+				{
+					"name": "Wallets & History",
+					"item": [
+						{
+							"name": "Get Customer Order history and wallet balance",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/customer-orders/:customerid/shop/:ShopId/history",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"customer-orders",
+										":customerid",
+										"shop",
+										":ShopId",
+										"history"
+									],
+									"variable": [
+										{
+											"key": "customerid",
+											"value": ""
+										},
+										{
+											"key": "ShopId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Customer Order history and wallet balance All",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/customer-orders/all/:customerid/history",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"customer-orders",
+										"all",
+										":customerid",
+										"history"
+									],
+									"variable": [
+										{
+											"key": "customerid",
+											"value": "4c36e997-c050-4479-a1f2-f992a2d27d79"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get shop balance",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/shop-balance/:shopid",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"shop-balance",
+										":shopid"
+									],
+									"variable": [
+										{
+											"key": "shopid",
+											"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Customer warranty list",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/customer-orders/:customerid/shop/:shopid/warranty",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"customer-orders",
+										":customerid",
+										"shop",
+										":shopid",
+										"warranty"
+									],
+									"variable": [
+										{
+											"key": "customerid",
+											"value": ""
+										},
+										{
+											"key": "shopid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Customer warranty list All",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/customer-orders/all/:customerid/warranty",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"customer-orders",
+										"all",
+										":customerid",
+										"warranty"
+									],
+									"variable": [
+										{
+											"key": "customerid",
+											"value": "4c36e997-c050-4479-a1f2-f992a2d27d79"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get customer wallet",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMzFjMzY3Zi1hZTliLTQ1YjUtYWZmOS03NTJmZTU5Zjg5ZmQiLCJlbWFpbCI6ImpvcmF4ZTU5ODNAcHJvdmtvLmNvbSIsInJvbGUiOiJTSE9QX09XTkVSIiwiaWF0IjoxNzQ3Njc4ODY2LCJleHAiOjE3NDc3NjUyNjZ9.KtN1WrOPdqzdmLDhEl5l7bTFGBmXU5gid5-RFdumx0Y"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/customer-wallet/:shopid/:customerid",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"customer-wallet",
+										":shopid",
+										":customerid"
+									],
+									"variable": [
+										{
+											"key": "shopid",
+											"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+										},
+										{
+											"key": "customerid",
+											"value": "4c36e997-c050-4479-a1f2-f992a2d27d79"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get customer wallet All shops",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{server}}{{order}}/customer-wallet/all/:customerid",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"customer-wallet",
+										"all",
+										":customerid"
+									],
+									"variable": [
+										{
+											"key": "customerid",
+											"value": "4c36e997-c050-4479-a1f2-f992a2d27d79"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    // REQUIRED: The shop where the order is placed\n    \"shopId\": \"e2de2c02-2d2a-4f69-a9f2-317557bff078\",\n    // \"customerId\": \"CUSTOMER_UUID_HERE\",  // OPTIONAL: If you know the customer ID, use this (for existing customers)\n    // OPTIONAL: For new/guest customers, provide these instead of customerId\n    \"customerName\": \"John Doe\",\n    \"customerEmail\": \"john@example.com\",\n    \"customerPhone\": \"1234567890\", // OPTIONAL: Phone number\n    // REQUIRED: List of items in the order\n    \"items\": [\n        {\n            \"productId\": \"440ce979-7ce8-46b4-a967-7549f05bcb02\", // REQUIRED: Product being ordered\n            \"barcodes\": [\n                \"789798789798\"\n            ], // REQUIRED: List of item barcodes (one per physical item)\n            \"customPrice\": 135000.0 // REQUIRED: Price per item (can be overridden per order)\n        }\n    ],\n    \"discount\": 10, // OPTIONAL: Discount amount (number, e.g., 10 for $10 or 10%)\n    \"discountType\": \"FIXED\", // OPTIONAL: Type of discount (\"FIXED\" for fixed amount, \"PERCENTAGE\" for %)\n    // REQUIRED: List of payments for the order\n    \"payments\": [\n        {\n            \"amount\": 135000, // REQUIRED: Amount paid with this method\n            \"method\": \"CASH\" // REQUIRED: One of \"CASH\", \"CARD\", \"BANK\", \"WALLET\"\n            // \"reference\": \"TXN123\"     // OPTIONAL: Reference for card/bank payments\n        }\n    ],\n    \"note\": \"Test order\", // OPTIONAL: Note for the order (e.g., special instructions)\n    \"draft\": false, // OPTIONAL: If true, creates a draft order (not completed yet)\n    \"sendReceiptEmail\": true // OPTIONAL: If true, sends a receipt email to the customer (customerEmail must be provided)\n    // \"customDueAmount\": 5,    // OPTIONAL: If you want to specify a custom due amount (for customers with negative wallet balance)\n    // \"duePaidAmount\": 5,   // OPTIONAL: If you want to specify how much of the due is being paid now\n    // \"extraWalletAmount\": 10  // OPTIONAL: If you want to specify an exact extra amount to add to the wallet\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{server}}{{order}}/orders",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order - Adding to wallet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shopId\": \"YOUR_SHOP_ID\",\n    \"customerId\": \"YOUR_CUSTOMER_ID\",\n    \"items\": [\n      {\n        \"productId\": \"YOUR_PRODUCT_ID\",\n        \"barcodes\": [\"BARCODE1\"],\n        \"customPrice\": 50\n      }\n    ],\n    \"total\": 50,\n    \"payments\": [\n      {\n        \"amount\": 60,\n        \"method\": \"CARD\",\n        \"reference\": \"Card payment with extra\"\n      }\n    ],\n    \"storeExtraInWallet\": true,\n    \"note\": \"Extra $10 to wallet\"\n  }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{server}}{{order}}/orders",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order - Multiple Payment Methods",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shopId\": \"YOUR_SHOP_ID\",\n    \"customerName\": \"Jane Smith\",\n    \"items\": [\n      {\n        \"productId\": \"YOUR_PRODUCT_ID\",\n        \"barcodes\": [\"BARCODE3\", \"BARCODE4\"],\n        \"customPrice\": 200\n      }\n    ],\n    \"total\": 200,\n    \"payments\": [\n      {\n        \"amount\": 150,\n        \"method\": \"CASH\"\n      },\n      {\n        \"amount\": 50,\n        \"method\": \"CARD\",\n        \"reference\": \"Split payment\"\n      }\n    ],\n    \"note\": \"Split payment order\"\n  }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{server}}{{order}}/orders",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Order",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server}}{{order}}/orders?shopId=YOUR_SHOP_ID&status=COMPLETED&startDate=2023-01-01&endDate=2023-12-31",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"orders"
+							],
+							"query": [
+								{
+									"key": "shopId",
+									"value": "YOUR_SHOP_ID"
+								},
+								{
+									"key": "status",
+									"value": "COMPLETED"
+								},
+								{
+									"key": "startDate",
+									"value": "2023-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2023-12-31"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shop Order History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server}}{{order}}/orders?shopId=e2de2c02-2d2a-4f69-a9f2-317557bff078",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"orders"
+							],
+							"query": [
+								{
+									"key": "shopId",
+									"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+								},
+								{
+									"key": "status",
+									"value": "COMPLETED",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "2023-01-01",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "2023-12-31",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server}}{{order}}/orders/:ORDER_ID",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"orders",
+								":ORDER_ID"
+							],
+							"variable": [
+								{
+									"key": "ORDER_ID",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cashflow",
+			"item": [
+				{
+					"name": "Payments",
+					"item": [
+						{
+							"name": "Add Upcoming payment",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"description\": \"Office Supplies\",\r\n    \"amount\": \"15000\",\r\n    \"dueDate\": \"2025-06-01\",\r\n    \"shopId\": \"e2de2c02-2d2a-4f69-a9f2-317557bff078\",\r\n    \"isRecurring\": false //true for monthly recurrent\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{order}}/upcoming-payments",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"upcoming-payments"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Upcoming Payments",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Get Upcoming Payment By ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{order}}//upcoming-payments/:PAYMENT_ID",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"",
+										"upcoming-payments",
+										":PAYMENT_ID"
+									],
+									"variable": [
+										{
+											"key": "PAYMENT_ID",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Upcoming Payment",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"description\": \"Updated Office Rent\",\r\n    \"amount\": \"55000\",\r\n    \"dueDate\": \"2025-06-15\",\r\n    \"isRecurring\": true\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{server}}{{order}}/upcoming-payments/:PAYMENT_ID",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"upcoming-payments",
+										":PAYMENT_ID"
+									],
+									"variable": [
+										{
+											"key": "PAYMENT_ID",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Pay Upcoming Payment",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{server}}{{order}}/upcoming-payments/:PAYMENT_ID/pay",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"upcoming-payments",
+										":PAYMENT_ID",
+										"pay"
+									],
+									"variable": [
+										{
+											"key": "PAYMENT_ID",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Upcoming Payment",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"description\": \"Office Supplies\",\r\n    \"amount\": \"15000\",\r\n    \"dueDate\": \"2025-06-01\",\r\n    \"shopId\": \"e2de2c02-2d2a-4f69-a9f2-317557bff078\",\r\n    \"isRecurring\": false //true for monthly recurrent\r\n}"
+								},
+								"url": {
+									"raw": "{{server}}{{order}}/upcoming-payments/:PaymentId",
+									"host": [
+										"{{server}}{{order}}"
+									],
+									"path": [
+										"upcoming-payments",
+										":PaymentId"
+									],
+									"variable": [
+										{
+											"key": "PaymentId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Customer Dues",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server}}{{order}}/cash-flow/customer-dues/:shopId",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"cash-flow",
+								"customer-dues",
+								":shopId"
+							],
+							"variable": [
+								{
+									"key": "shopId",
+									"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Shop Comprehensive cashflow",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{server}}{{order}}/cash-flow/comprehensive/:shopId",
+							"host": [
+								"{{server}}{{order}}"
+							],
+							"path": [
+								"cash-flow",
+								"comprehensive",
+								":shopId"
+							],
+							"variable": [
+								{
+									"key": "shopId",
+									"value": "e2de2c02-2d2a-4f69-a9f2-317557bff078"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{ACCESS_TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "ACCESS_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "REFRESH_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "BASE_URL_STOCK",
+			"value": "http://localhost:3002",
+			"type": "string"
+		}
+	]
+}
