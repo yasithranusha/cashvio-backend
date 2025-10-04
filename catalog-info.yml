@@ -66,7 +66,7 @@ kind: Component
 metadata:
   name: cashvio-auth-service
   title: Auth Service
-  description: Handles authentication, JWT tokens, Google OAuth, and user management
+  description: Handles authentication, JWT tokens, Google OAuth, user management, and employee management
   annotations:
     github.com/project-slug: yasithranusha/cashvio-backend
     backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main/apps/auth
@@ -76,6 +76,8 @@ metadata:
     - oauth
     - google-auth
     - user-management
+    - employee-management
+    - hr-management
 spec:
   type: service
   lifecycle: development
@@ -177,7 +179,7 @@ kind: API
 metadata:
   name: cashvio-auth-api
   title: Cashvio Auth API
-  description: Authentication and user management API - documented in Postman
+  description: Authentication, user management, and employee management API - documented in Postman
   annotations:
     postman.com/collection-url: "https://github.com/yasithranusha/cashvio-backend/blob/main/cashvio_postman_collection.json"
 spec:
@@ -190,7 +192,7 @@ spec:
     info:
       title: Cashvio Auth API
       version: 1.0.0
-      description: API for authentication, JWT tokens, and user management
+      description: API for authentication, JWT tokens, user management, and employee management
     servers:
       - url: http://localhost:8080
         description: Development server
@@ -428,7 +430,7 @@ metadata:
   title: RabbitMQ Message Broker
   description: Message broker for inter-service communication between all microservices
   annotations:
-    rabbitmq.management-url: "http://localhost:15672"
+    rabbitmq.management-url: 'http://localhost:15672'
 spec:
   type: message-broker
   lifecycle: development
