@@ -25,6 +25,7 @@ model User {
   wallets         CustomerWallet[]
   orders          Order[]
   shopAccess      UserShop[]
+  employeeProfile Employee[]
   defaultShop     Shop?            @relation("DefaultShop", fields: [defaultShopId], references: [id])
 
   @@index([email])
@@ -52,6 +53,7 @@ model Shop {
   shopBalance     ShopBalance?
   suppliers       Supplier[]
   users           UserShop[]
+  employees       Employee[]
   defaultForUsers User[]           @relation("DefaultShop")
   transactions    Transaction[]
   recurringPayments RecurringPayment[]
@@ -73,6 +75,29 @@ model UserShop {
   @@index([userId])
   @@index([shopId])
   @@map("user_shops")
+}
+
+model Employee {
+  id            String         @id @default(uuid())
+  userId        String         @map("user_id")
+  shopId        String         @map("shop_id")
+  designation   String
+  department    String?
+  salary        String         // Using string to handle decimal values precisely
+  hireDate      DateTime       @map("hire_date")
+  status        EmployeeStatus @default(ACTIVE)
+  emergencyContact String?     @map("emergency_contact")
+  address       String?
+  notes         String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shopId])
+  @@index([userId])
+  @@index([shopId])
+  @@map("employees")
 }
 
 model Supplier {
@@ -480,4 +505,11 @@ enum TransactionType {
   EXTRA_PAYMENT
   LOYALTY_POINTS
   REFUND
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
 }

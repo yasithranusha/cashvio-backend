@@ -54,7 +54,7 @@ kind: Component
 metadata:
   name: cashvio-auth-service
   title: Auth Service
-  description: Handles authentication, JWT tokens, Google OAuth, and user management
+  description: Handles authentication, JWT tokens, Google OAuth, user management, and employee management
   annotations:
     github.com/project-slug: yasithranusha/cashvio-backend
     backstage.io/source-location: url:https://github.com/yasithranusha/cashvio-backend/tree/main/apps/auth
@@ -64,6 +64,8 @@ metadata:
     - oauth
     - google-auth
     - user-management
+    - employee-management
+    - hr-management
 spec:
   type: service
   lifecycle: development
@@ -164,7 +166,7 @@ kind: API
 metadata:
   name: cashvio-auth-api
   title: Cashvio Auth API
-  description: Authentication and user management API - documented in Postman
+  description: Authentication, user management, and employee management API - documented in Postman
   annotations:
     postman.com/collection-url: "Link to your Postman collection"
 spec:
@@ -177,7 +179,7 @@ spec:
     info:
       title: Cashvio Auth API
       version: 1.0.0
-      description: API for authentication, JWT tokens, and user management
+      description: API for authentication, JWT tokens, user management, and employee management
     servers:
       - url: http://localhost:8080
         description: Development server
@@ -196,6 +198,31 @@ spec:
         post:
           summary: Refresh JWT token
           description: Refresh expired access token using refresh token
+      /employees:
+        get:
+          summary: Get all employees
+          description: Retrieve paginated list of employees with filtering options
+        post:
+          summary: Create employee
+          description: Create a new employee record for a user in a shop
+      /employees/{id}:
+        get:
+          summary: Get employee by ID
+          description: Retrieve detailed employee information by ID
+        put:
+          summary: Update employee
+          description: Update employee information including salary, designation, status
+        delete:
+          summary: Delete employee
+          description: Remove employee record from the system
+      /employees/user/{userId}/shop/{shopId}:
+        get:
+          summary: Get employee by user and shop
+          description: Retrieve employee information for a specific user in a shop
+      /employees/shop/{shopId}/count:
+        get:
+          summary: Get employee count
+          description: Get the number of active employees in a shop
 
 ---
 apiVersion: backstage.io/v1alpha1
